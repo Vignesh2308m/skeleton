@@ -31,6 +31,18 @@ impl Reader {
     }
 }
 
+struct Search<T: core::cmp::PartialEq>{
+    word_matches : Vec<T>
+}
+
+impl<T: core::cmp::PartialEq> Search<T> {
+    fn compare(&mut self, a: T, b: T){
+        if a == b {
+            self.word_matches.push(a);
+        }
+    }
+}
+
 fn main() {
     let r = Reader::new("./data/intro.txt", Txt);
     if let Err(err) = r {
@@ -46,4 +58,6 @@ fn main() {
     }
 
     println!("{:?}", c.ok().unwrap());
+
+    
 }
