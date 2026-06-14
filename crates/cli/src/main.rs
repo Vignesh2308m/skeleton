@@ -30,11 +30,13 @@ fn main()-> Result<(), std::io::Error>{
     loop {
         let n = buffer.read(&mut place_holder)?;
 
+        println!("{}", n);
+
         if n == 0{
             break;
         }
 
-        for i in 0..n{
+        for i in 0..n-pattern.len()+1{
             if &place_holder[i..i+pattern.len()] == *pattern {
                 println!("{},{}",i, i+pattern.len());
             }
