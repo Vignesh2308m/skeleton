@@ -1,6 +1,6 @@
 # Skeleton - A Grep Project
 
-![Logo](logo.png)
+![Logo](./imgs/logo.png)
 
 Skeleton is a sophisticated implementation of `grep` designed to explore advanced Rust programming concepts and demonstrate high-performance search capabilities.
 
