@@ -36,8 +36,7 @@ fn main()-> Result<(), std::io::Error>{
 
         for i in 0..n{
             if &place_holder[i..i+pattern.len()] == *pattern {
-                println!("Match found");
-                break;
+                println!("{},{}",i, i+pattern.len());
             }
         }
     }
