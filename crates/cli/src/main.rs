@@ -1,63 +1,31 @@
-use std::io::{Error, Read};
-use std::fs::{self, File};
-use std::io::BufReader;
+use std::env;
+use std::fs::File;
+use std::io::{BufReader, Read};
 
-use crate::FileType::Txt;
 
-enum FileType {
-    Txt
-}
+fn main(){
+    // Getting input arguments
+    let args:Vec<String> = env::args().collect();
 
-struct Reader{
-    buf : BufReader<File>,
-    file_type : FileType
-}
-
-impl Reader {
-    fn new(path:&str, file_type:FileType) -> Result<Reader, Error> {
-        let file = fs::File::open(path)?;
-        let buf = BufReader::new(file);
-
-        Ok(Reader{
-            buf:buf,
-            file_type:file_type
-        })
+    if args.len() != 3{
+        panic!("number of argments mismatches");
     }
 
-    fn read(&mut self) -> Result<[u8;10], Error> {
-        let mut content = [0;10];
-        self.buf.read(&mut content)?;
-        Ok(content)
-    }
-}
+    let path = &args[1];
+    let pattern = &args[2];
 
-struct Search<T: core::cmp::PartialEq>{
-    word_matches : Vec<T>
-}
+    //Loading File Buffer
 
-impl<T: core::cmp::PartialEq> Search<T> {
-    fn compare(&mut self, a: T, b: T){
-        if a == b {
-            self.word_matches.push(a);
-        }
-    }
-}
-
-fn main() {
-    let r = Reader::new("./data/intro.txt", Txt);
-    if let Err(err) = r {
-        println!("{}", err);
-        return;
+    let file = File::open(path);
+    if let Err(_) = file {
+        panic!("Unable to Open File");
     }
 
-    let c = r.ok().unwrap().read();
+    let mut buffer = BufReader::new(file.unwrap());
 
-    if let Err(err) = c {
-        println!("{}", err);
-        return;
-    }
+    let mut place_holder = String::new();
 
-    println!("{:?}", c.ok().unwrap());
+    let _ = buffer.read_to_string(&mut place_holder);
 
-    
+    println!("{}", place_holder.contains(pattern));
 }
