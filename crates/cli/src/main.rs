@@ -1,6 +1,30 @@
 use std::env;
+use std::fmt::Error;
 use std::fs::File;
 use std::io::{BufReader, Read};
+
+struct Args<'a>{
+    path: String,
+    pattern: &'a[u8]
+}
+struct Match{
+    line_no: usize,
+    start: usize,
+    end: usize,
+}
+
+fn get_args<'a>() -> Result<Args<'a>, Error>{
+    todo!()
+}
+
+fn find_match(buf: BufReader<File>, pattern: &[u8])-> Result<Vec<Match>,Error>{
+    todo!()
+}
+
+fn print_pretty(matches: Vec<Match>) -> Result<(), Error>{
+    todo!()
+}
+
 
 fn main() -> Result<(), std::io::Error> {
     // Getting input arguments
