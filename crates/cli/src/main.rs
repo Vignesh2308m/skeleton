@@ -34,6 +34,7 @@ fn find_match(mut buf: BufReader<File>, pattern: &[u8])-> Result<Vec<Match>,std:
     let mut place_holder = [0; 1024];
     let mut matches: Vec<Match> =Vec::new();
     
+    let mut overlap: &[u8] = &[0];
     let mut line_no: usize = 1;
     let mut offset: usize = 0;
 
