@@ -1,5 +1,4 @@
 use std::env;
-use std::fmt::Error;
 use std::fs::File;
 use std::io::ErrorKind::InvalidInput;
 use std::io::{BufReader, Read};
@@ -31,31 +30,15 @@ fn get_args() -> Result<Args, std::io::Error> {
     Ok(Args { path, pattern })
 }
 
-fn find_match(buf: BufReader<File>, pattern: &[u8])-> Result<Vec<Match>,Error>{
-    todo!()
-}
-
-fn print_pretty(matches: Vec<Match>) -> Result<(), Error>{
-    todo!()
-}
-
-
-fn main() -> Result<(), std::io::Error> {
-
-    let arg = get_args()?;
-
-    // Loading File Buffer
-    let file = File::open(arg.path)?;
-
-    let mut buffer = BufReader::new(file);
-
+fn find_match(mut buf: BufReader<File>, pattern: &[u8])-> Result<Vec<Match>,std::io::Error>{
     let mut place_holder = [0; 1024];
-
+    let mut matches: Vec<Match> =Vec::new();
+    
     let mut line_no: usize = 1;
     let mut offset: usize = 0;
 
     loop {
-        let n = buffer.read(&mut place_holder)?;
+        let n = buf.read(&mut place_holder)?;
 
         if n == 0 {
             break;
@@ -65,13 +48,12 @@ fn main() -> Result<(), std::io::Error> {
 
         let mut window = 0;
 
-        for i in chunk.windows(arg.pattern.len()) {
-            if i == arg.pattern {
-                println!(
-                    "line {}, start {}, end {}",
-                    line_no,
-                    offset + window,
-                    offset + window + arg.pattern.len()
+        for i in chunk.windows(pattern.len()) {
+            if i == pattern {
+                matches.push(
+                    Match {line_no,
+                    start: offset + window,
+                    end: offset + window + pattern.len()}
                 );
             }
 
@@ -93,5 +75,30 @@ fn main() -> Result<(), std::io::Error> {
         offset += n;
     }
 
+    Ok(matches)
+ 
+}
+
+fn print_pretty(matches: Vec<Match>) -> Result<(), std::io::Error>{
+    for m in matches{
+        println!("{}| {}, {}", m.line_no, m.start, m.end);
+    }
+    Ok(())
+}
+
+
+fn main() -> Result<(), std::io::Error> {
+
+    let arg = get_args()?;
+
+    // Loading File Buffer
+    let file = File::open(arg.path)?;
+
+    let mut buffer = BufReader::new(file);
+
+    let matches = find_match(buffer, arg.pattern.as_slice())?; 
+    
+    print_pretty(matches)?;
+    
     Ok(())
 }
