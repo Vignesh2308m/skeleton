@@ -51,35 +51,46 @@ fn find_match(mut buf: BufReader<File>, pattern: &[u8])-> Result<Vec<Match>,std:
         if n == 0{
             break;
         }
-        println!("{}", n);
 
         let chunk = &mem_buf.place_holder[..n];
-        println!("{:?}", mem_buf.overlap);
-        println!("{:?}", chunk);
 
-        let mut temp:Vec<u8> = Vec::new();
+        let mut w = 0;
 
-        for i in 0..mem_buf.overlap.len(){
-            temp.clear();
-            temp.extend_from_slice(&mem_buf.overlap[i..]);
-            temp.extend_from_slice(&chunk[..i+1]);
-
-            if &temp == pattern{
-                print!("YES");
+        for split in 1..=mem_buf.overlap.len() {
+            if mem_buf.overlap.ends_with(&pattern[..split])
+                && chunk.starts_with(&pattern[split..])
+            {
+                matches.push(
+                    Match { line_no: line_no, start: offset-split+1, end: offset-split+size}
+                );
             }
+            
+            if mem_buf.overlap[w] == b'\n'{
+                line_no += 1;
+            }
+
+            w += 1;
         }
 
-        for i in chunk.windows(size){
-            //println!("{:?}",i);
+        for (idx, i) in chunk.windows(size).enumerate(){
             if i == pattern{
-                print!("YES");
+                matches.push(
+                    Match { line_no: line_no, start: offset+idx, end: offset+idx+size-1 }
+                );
             }
+            
+            if chunk[w-mem_buf.overlap.len()] == b'\n'{
+                line_no += 1;
+            }
+
+            w += 1;
         }
         if n>size{
             mem_buf.overlap.clear();
             mem_buf.overlap.extend_from_slice(&chunk[n-size+1..]);
         }
-        //println!("{:?}", mem_buf.overlap);
+
+        offset+=n;
     }
     Ok(matches)
 }
