@@ -1,7 +1,7 @@
 # Skeleton - A Grep Project
 
 <p align="center">
-  <img src="./imgs/logo.png" alt="Image" width="400" height="300" />
+  <img src="./imgs/logo.png" alt="Image" width="400" height="400" />
 </p>
 Skeleton is a sophisticated implementation of `grep` designed to explore advanced Rust programming concepts and demonstrate high-performance search capabilities.
 
