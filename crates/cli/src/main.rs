@@ -1,4 +1,4 @@
-use std::{env, mem};
+use std::{env};
 use std::fs::File;
 use std::io::ErrorKind::InvalidInput;
 use std::io::{BufReader, Read};
