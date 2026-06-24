@@ -26,9 +26,15 @@ impl Text{
             self.place_holder.drain(..self.offset);
             self.offset = 0;
         }
-
+        
         let n = self.buffer.read(&mut self.place_holder[self.offset..self.offset+SIZE])?; 
         
+        if n == 0{
+            return Err(std::io::Error::from(
+                           std::io::ErrorKind::UnexpectedEof,
+                       ));
+        }
+
         let mut start = 0;
         let mut end = 0;
 
@@ -36,17 +42,16 @@ impl Text{
             if self.place_holder[self.offset + i] == b'\n'{
                 start = self.offset;
                 end = self.offset + i;
-                self.offset += i;
+                self.offset += i+1;
                 break ;
             }
         }
-
-        if n == 0{
-            return Err(std::io::Error::from(
-                           std::io::ErrorKind::UnexpectedEof,
-                       ));
+        
+        if end == 0{
+            start = self.offset;
+            end = self.place_holder.len();
         }
-          
+        
         Ok(&self.place_holder[start..end])
 
     }
