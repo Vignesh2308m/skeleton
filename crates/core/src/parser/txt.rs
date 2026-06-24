@@ -21,32 +21,32 @@ impl Text{
         Ok(Text { buffer, place_holder:Vec::new(), offset:0})
     }
     fn read_line(&mut self) -> Result<&[u8],Error>{
+
+        if self.offset > 4*SIZE{
+            self.place_holder.drain(..self.offset);
+            self.offset = 0;
+        }
+
         let n = self.buffer.read(&mut self.place_holder[self.offset..self.offset+SIZE])?; 
-        
-        let i:usize = 0;
-        for i in 0..n{
-            if self.place_holder[i] == b'\n'{
-                break ;
-            }
-        }
-        if i == 0{
-            return Err(std::io::Error::from(
-                           std::io::ErrorKind::UnexpectedEof,
-                       ));
-        }
         
         let mut start = 0;
         let mut end = 0;
 
-        if self.offset == 0{
-            self.offset += i;
-            start = 0;
-            end = i;
-        } else {
-            start = self.offset;
-            end = self.offset + i;
-            self.offset += i;
+        for i in 0..n{
+            if self.place_holder[self.offset + i] == b'\n'{
+                start = self.offset;
+                end = self.offset + i;
+                self.offset += i;
+                break ;
+            }
         }
+
+        if n == 0{
+            return Err(std::io::Error::from(
+                           std::io::ErrorKind::UnexpectedEof,
+                       ));
+        }
+          
         Ok(&self.place_holder[start..end])
 
     }
