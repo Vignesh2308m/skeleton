@@ -6,8 +6,7 @@ const SIZE:usize = 1024;
 
 struct Text{
     buffer: BufReader<File>,
-    place_holder: [u8; SIZE],
-    overflow: Vec<u8>,
+    place_holder: Vec<u8>,
     offset: usize,
 }
 
@@ -19,13 +18,13 @@ impl Text{
 
         let buffer = BufReader::new(file);
 
-        Ok(Text { buffer, place_holder:[0;SIZE], overflow:Vec::new(), offset:0})
+        Ok(Text { buffer, place_holder:Vec::new(), offset:0})
     }
     fn read_line(&mut self) -> Result<&[u8],Error>{
-        let n = self.buffer.read(&mut self.place_holder); 
+        let n = self.buffer.read(&mut self.place_holder[self.offset..self.offset+SIZE])?; 
         
         let i:usize = 0;
-        for i in 0..SIZE{
+        for i in 0..n{
             if self.place_holder[i] == b'\n'{
                 break ;
             }
@@ -35,8 +34,6 @@ impl Text{
                            std::io::ErrorKind::UnexpectedEof,
                        ));
         }
-
-        self.overflow.extend_from_slice(&self.place_holder);
         
         let mut start = 0;
         let mut end = 0;
@@ -50,7 +47,7 @@ impl Text{
             end = self.offset + i;
             self.offset += i;
         }
-        Ok(&self.overflow[start..end])
+        Ok(&self.place_holder[start..end])
 
     }
     
