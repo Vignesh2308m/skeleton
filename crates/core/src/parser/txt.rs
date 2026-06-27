@@ -30,7 +30,7 @@ impl Text{
 
         loop {
             
-            if self.line_offset >= SIZE{            
+            if self.line_offset == self.mem_buffer.len(){            
                 self.mem_buffer.resize(self.mem_buffer.len()+SIZE, 0u8); 
             }
             
