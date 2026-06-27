@@ -23,40 +23,44 @@ impl Text{
     }
 
     fn read_line(&mut self) -> Result<&[u8],Error>{
-        
-        if self.line_offset >= SIZE{            
-            self.mem_buffer.resize(self.mem_buffer.len()+SIZE, 0u8); 
-        }
-        
-        let n = self.file_buffer.read(&mut self.mem_buffer[self.line_offset..])?; 
-        self.line_offset += n;
-        
-        if self.line_offset <= self.byte_offset{
-            return Err(std::io::Error::from(
-                std::io::ErrorKind::UnexpectedEof,
-            ));
-        }
-        
+
         let mut start = 0;
         let mut end = 0;
         let mut found = false;
-        
-        for i in self.byte_offset..self.mem_buffer.len(){
-            if self.mem_buffer[i] == b'\n'{
-                start = self.byte_offset;
-                end = i;
-                self.byte_offset += i+1;
-                found = true;
-                break ;
-            }
-        }
 
-        if !found{
-            start = self.byte_offset;
-            end = self.line_offset;
-            self.byte_offset = self.line_offset;
+        loop {
+            
+            if self.line_offset >= SIZE{            
+                self.mem_buffer.resize(self.mem_buffer.len()+SIZE, 0u8); 
+            }
+            
+            let n = self.file_buffer.read(&mut self.mem_buffer[self.line_offset..])?; 
+            self.line_offset += n;
+            
+            println!("{},{}",self.byte_offset,self.line_offset);
+            
+            if self.line_offset <= self.byte_offset{
+                return Err(std::io::Error::from(
+                    std::io::ErrorKind::UnexpectedEof,
+                ));
+            }
+            
+            
+            for i in self.byte_offset..self.line_offset{
+                if self.mem_buffer[i] == b'\n'{
+                    start = self.byte_offset;
+                    end = i;
+                    self.byte_offset = i + 1;
+                    found = true;
+                    break ;
+                }
+            }
+            
+            if found{
+                break;
+            }
+            
         }
-        
         Ok(&self.mem_buffer[start..end])
         
     }
