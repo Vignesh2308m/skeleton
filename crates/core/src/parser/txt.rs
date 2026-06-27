@@ -2,12 +2,13 @@ use std::io::{Error, Read};
 use std::fs::File;
 use std::io::{BufReader};
 
-const SIZE:usize = 1024;
+const SIZE:usize = 8080;
 
 struct Text{
-    buffer: BufReader<File>,
-    place_holder: Vec<u8>,
-    offset: usize,
+    file_buffer: BufReader<File>,
+    mem_buffer: Vec<u8>,
+    line_offset: usize,
+    byte_offset: usize,
 }
 
 
@@ -18,47 +19,48 @@ impl Text{
 
         let buffer = BufReader::new(file);
 
-        Ok(Text { buffer, place_holder:Vec::new(), offset:0})
+        Ok(Text { file_buffer: buffer, mem_buffer:vec![0u8;SIZE], line_offset:0, byte_offset:0})
     }
+
     fn read_line(&mut self) -> Result<&[u8],Error>{
-
-        if self.offset > 4*SIZE{
-            self.place_holder.drain(..self.offset);
-            self.offset = 0;
+        
+        if self.line_offset >= SIZE{            
+            self.mem_buffer.resize(self.mem_buffer.len()+SIZE, 0u8); 
         }
         
-        let n = self.buffer.read(&mut self.place_holder[self.offset..self.offset+SIZE])?; 
+        let n = self.file_buffer.read(&mut self.mem_buffer[self.line_offset..])?; 
+        self.line_offset += n;
         
-        if n == 0{
+        if self.line_offset <= self.byte_offset{
             return Err(std::io::Error::from(
-                           std::io::ErrorKind::UnexpectedEof,
-                       ));
+                std::io::ErrorKind::UnexpectedEof,
+            ));
         }
-
+        
         let mut start = 0;
         let mut end = 0;
-
-        for i in 0..n{
-            if self.place_holder[self.offset + i] == b'\n'{
-                start = self.offset;
-                end = self.offset + i;
-                self.offset += i+1;
+        let mut found = false;
+        
+        for i in self.byte_offset..self.mem_buffer.len(){
+            if self.mem_buffer[i] == b'\n'{
+                start = self.byte_offset;
+                end = i;
+                self.byte_offset += i+1;
+                found = true;
                 break ;
             }
         }
-        
-        if end == 0{
-            start = self.offset;
-            end = self.place_holder.len();
+
+        if !found{
+            start = self.byte_offset;
+            end = self.line_offset;
+            self.byte_offset = self.line_offset;
         }
         
-        Ok(&self.place_holder[start..end])
-
+        Ok(&self.mem_buffer[start..end])
+        
     }
     
-    fn close(){
-        todo!();
-    }
 }
 
 
@@ -73,5 +75,18 @@ mod tests {
             println!("{}",err) 
         }
         assert!(txt_file.is_ok());
+    }
+
+    #[test]
+    fn test_read_text(){
+        let txt_file = Text::new("C:/Users/Vickynila/Projects/skeleton/data/intro.txt");
+        if let Err(err) = &txt_file{
+            println!("{}",err); 
+            panic!("Error");
+        }
+        let mut txt_file = txt_file.unwrap();
+        while let Ok(value) = txt_file.read_line(){
+            println!("{:?}", &String::from_utf8(Vec::from(value))); 
+        }
     }
 }
