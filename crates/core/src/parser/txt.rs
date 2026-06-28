@@ -2,7 +2,7 @@ use std::io::{Error, Read};
 use std::fs::File;
 use std::io::{BufReader};
 
-const SIZE:usize = 8080;
+const SIZE:usize = 4096;
 
 struct Text{
     file_buffer: BufReader<File>,
