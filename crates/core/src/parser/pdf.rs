@@ -1,6 +1,7 @@
 use std::io::{Error, Read, Seek};
 use std::fs::File;
 use std::io::{BufReader};
+use std::convert::TryInto;
 
 const SIZE:usize = 32;
 
@@ -57,9 +58,11 @@ impl Pdf{
             }
         }
 
-        println!("Found {},{}:", startxref_byte, eof_byte);
+        
+        let xref_pos:i64 = i64::from_le_bytes(self.mem_buffer[startxref_byte..eof_byte].try_into().unwrap());
+        
+        println!("{}", xref_pos);
 
-        println!("{:?}", String::from_utf8(Vec::from(&self.mem_buffer[..n])));
 
         Ok(&self.mem_buffer)
     }
