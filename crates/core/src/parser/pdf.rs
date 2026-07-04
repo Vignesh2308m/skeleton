@@ -2,6 +2,7 @@ use std::io::{Error, Read, Seek};
 use std::fs::File;
 use std::io::{BufReader};
 use std::convert::TryInto;
+use std::ops::RemAssign;
 
 const SIZE:usize = 32;
 
@@ -57,13 +58,28 @@ impl Pdf{
                 eof_byte = i + startxref_byte; 
             }
         }
-
         
-        let xref_pos:i64 = i64::from_le_bytes(self.mem_buffer[startxref_byte..eof_byte].try_into().unwrap());
-        
-        println!("{}", xref_pos);
+        let mut xref_pos:u64 = 0;
+        for i  in &self.mem_buffer[startxref_byte..eof_byte]{
+            xref_pos = xref_pos*10 + (*i - b'0') as u64;
+        }
+
+        //Finding Xref table
+        self.file_buffer.seek(std::io::SeekFrom::Start(xref_pos))?;
+
+        let xref = b"xref";
+        let mut xref_byte:usize = 0;
+        let n = self.file_buffer.read(&mut self.mem_buffer)?; 
+
+        for (i, x) in self.mem_buffer[..n].windows(xref.len()).enumerate(){
+            if x == xref{
+                xref_byte = i + xref.len(); 
+            }
+        }
 
 
+
+        println!("{}", String::from_utf8_lossy(&self.mem_buffer));
         Ok(&self.mem_buffer)
     }
     
