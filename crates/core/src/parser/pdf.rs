@@ -72,7 +72,7 @@ impl Pdf{
 
         let n = self.file_buffer.read(&mut self.mem_buffer)?; 
 
-        let (x,y ) = self.seg_search(b"xref", b"trailer").unwrap();
+        let (x,y ) = self.bounded_seg_search(b"xref", b"trailer").unwrap();
 
 
         println!("{}", String::from_utf8_lossy(&self.mem_buffer[x..y]));
