@@ -4,7 +4,7 @@ use std::io::{BufReader};
 use std::convert::TryInto;
 use std::ops::RemAssign;
 
-const SIZE:usize = 32;
+const SIZE:usize = 1024;
 
 enum Layout{
     HEADER,
@@ -69,18 +69,20 @@ impl Pdf{
 
         let xref = b"xref";
         let mut xref_byte:usize = 0;
+
         let n = self.file_buffer.read(&mut self.mem_buffer)?; 
 
-        for (i, x) in self.mem_buffer[..n].windows(xref.len()).enumerate(){
-            if x == xref{
-                xref_byte = i + xref.len(); 
-            }
-        }
+        let (x,y ) = self.seg_search(b"xref", b"trailer").unwrap();
 
 
-
-        println!("{}", String::from_utf8_lossy(&self.mem_buffer));
+        println!("{}", String::from_utf8_lossy(&self.mem_buffer[x..y]));
         Ok(&self.mem_buffer)
+    }
+
+    fn seg_search(&self, start:&[u8], end:&[u8])->Result<(usize,usize), std::io::Error>{
+        let x = self.mem_buffer.windows(start.len()).position(|x| x == start).expect("Unable to find start");
+        let y = self.mem_buffer.windows(end.len()).position(|x| x == end).expect("Unable to find end");
+        Ok((x+start.len(),y))
     }
     
 }
