@@ -79,10 +79,16 @@ impl Pdf{
         Ok(&self.mem_buffer)
     }
 
-    fn seg_search(&self, start:&[u8], end:&[u8])->Result<(usize,usize), std::io::Error>{
+    fn bounded_seg_search(&self, start:&[u8], end:&[u8])->Result<(usize,usize), std::io::Error>{
         let x = self.mem_buffer.windows(start.len()).position(|x| x == start).expect("Unable to find start");
         let y = self.mem_buffer.windows(end.len()).position(|x| x == end).expect("Unable to find end");
-        Ok((x+start.len(),y))
+        Ok((x,y))
+    }
+    
+    fn nested_seg_search(&self, start:&[u8], end:&[u8])->Result<(Vec<usize>,Vec<usize>), std::io::Error>{
+        let x:Vec<usize> = self.mem_buffer.windows(start.len()).enumerate().filter(|(_, x)| *x == start).map(|(i,_)| i).collect();
+        let y:Vec<usize> = self.mem_buffer.windows(end.len()).enumerate().filter(|(_, y)| *y == end).map(|(i,_)| i).collect();
+        Ok((x,y))
     }
     
 }
