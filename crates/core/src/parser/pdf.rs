@@ -32,63 +32,40 @@ impl Pdf{
     }
 
     fn read(&mut self)-> Result<&[u8], std::io::Error>{
-        // Finding Eof 
+        // Go to Eof 
         let file_size = self.file_buffer.seek(std::io::SeekFrom::End(0))?;
-
         let read_size = file_size.min(SIZE as u64) as usize;
-
         self.file_buffer.seek(std::io::SeekFrom::End(-(read_size as i64)))?;
-
         let n = self.file_buffer.read(&mut self.mem_buffer)?; 
 
+        
         //Finding startxref
-        let sx = b"startxref\r\n";
-        let eof = b"\r\n%%EOF\r\n";
-        let mut startxref_byte = 0usize;
-        let mut eof_byte = 0usize;
-
-        for (i, x) in self.mem_buffer[..n].windows(sx.len()).enumerate(){
-            if x == sx{
-                startxref_byte = i + sx.len(); 
-            }
-        }
-
-        for (i, x) in self.mem_buffer[startxref_byte..n].windows(eof.len()).enumerate(){
-            if x == eof{
-                eof_byte = i + startxref_byte; 
-            }
-        }
+        let sxref = self.bounded_seg_search( b"startxref\r\n", 0, n )?;
+        let eof = self.bounded_seg_search( b"\r\n%%EOF", 0 , n )?;
         
         let mut xref_pos:u64 = 0;
-        for i  in &self.mem_buffer[startxref_byte..eof_byte]{
+        for i  in &self.mem_buffer[sxref+b"startxref\r\n".len()..eof]{
             xref_pos = xref_pos*10 + (*i - b'0') as u64;
         }
 
         //Finding Xref table
         self.file_buffer.seek(std::io::SeekFrom::Start(xref_pos))?;
-
-        let xref = b"xref";
-        let mut xref_byte:usize = 0;
-
         let n = self.file_buffer.read(&mut self.mem_buffer)?; 
-
-        let (x,y ) = self.bounded_seg_search(b"xref", b"trailer").unwrap();
-
+        let x = self.bounded_seg_search(b"xref",0,n)?;
+        let y = self.bounded_seg_search(b"trailer",x,n)?;
 
         println!("{}", String::from_utf8_lossy(&self.mem_buffer[x..y]));
         Ok(&self.mem_buffer)
     }
 
-    fn bounded_seg_search(&self, start:&[u8], end:&[u8])->Result<(usize,usize), std::io::Error>{
-        let x = self.mem_buffer.windows(start.len()).position(|x| x == start).expect("Unable to find start");
-        let y = self.mem_buffer.windows(end.len()).position(|x| x == end).expect("Unable to find end");
-        Ok((x,y))
+    fn bounded_seg_search(&self,key:&[u8], start:usize, end:usize)->Result<usize, std::io::Error>{
+        let x = self.mem_buffer[start..end].windows(key.len()).position(|x| x == key).expect("Unable to find start");
+        Ok(x)
     }
     
-    fn nested_seg_search(&self, start:&[u8], end:&[u8])->Result<(Vec<usize>,Vec<usize>), std::io::Error>{
-        let x:Vec<usize> = self.mem_buffer.windows(start.len()).enumerate().filter(|(_, x)| *x == start).map(|(i,_)| i).collect();
-        let y:Vec<usize> = self.mem_buffer.windows(end.len()).enumerate().filter(|(_, y)| *y == end).map(|(i,_)| i).collect();
-        Ok((x,y))
+    fn nested_seg_search(&self, key:&[u8], start:usize, end:usize)->Result<Vec<usize>, std::io::Error>{
+        let x:Vec<usize> = self.mem_buffer[start..end].windows(key.len()).enumerate().filter(|(_, x)| *x == key).map(|(i,_)| i).collect();
+        Ok(x)
     }
     
 }
