@@ -1,0 +1,3 @@
+[submodule "external/calamine"]
+	path = external/calamine
+	url = https://github.com/Vignesh2308m/calamine.git
