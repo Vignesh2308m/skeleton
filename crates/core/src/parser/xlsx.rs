@@ -1,57 +1,66 @@
-use std::collections::HashMap;
-use std::io::{Error, Read, Seek};
 use std::fs::File;
-use std::io::{BufReader};
-use flate2::read::ZlibDecoder;
-use std::convert::TryInto;
-use std::ops::RemAssign;
+use std::io::{BufReader, Error};
 
+use calamine::{Reader, open_workbook_auto};
 
-const SIZE:usize = 32;
+use super::{Parser, ParserMetadata};
 
-struct Xlsx{
+const SIZE: usize = 32;
+
+pub struct Xlsx {
+    path: String,
     file_buffer: BufReader<File>,
-    mem_buffer: Vec<u8>
+    mem_buffer: Vec<u8>,
 }
 
 impl Xlsx {
-    fn new(path:&str)-> Result<Xlsx, Error>{
-
+    fn open(path: &str) -> Result<Xlsx, Error> {
         let file = File::open(path)?;
-
         let buffer = BufReader::new(file);
 
-        Ok(Xlsx { file_buffer: buffer, mem_buffer:vec![0u8;SIZE]} )
-
-    }
-    
-    fn read(&mut self)->Result<&[u8],std::io::Error>{
-        
-        // Go to Eof 
-        let file_size = self.file_buffer.seek(std::io::SeekFrom::End(0))?;
-        let read_size = file_size.min(SIZE as u64) as usize;
-        self.file_buffer.seek(std::io::SeekFrom::End(-(read_size as i64)))?;
-        let n = self.file_buffer.read(&mut self.mem_buffer)?; 
-
-
-        Ok(&self.mem_buffer)    
+        Ok(Xlsx {
+            path: path.to_string(),
+            file_buffer: buffer,
+            mem_buffer: vec![0u8; SIZE],
+        })
     }
 }
 
-mod tests{
-    use crate::parser::xlsx::{self, Xlsx};
-
-    #[test]
-    fn test() {
-        let xlsx_file = Xlsx::new("C:/Users/Vickynila/Projects/skeleton/data/excel_test.xlsx"); 
-
-        if let Err(err) = xlsx_file {
-            println!("{}", err);
-            panic!("Error");
-        }
-        
-        xlsx_file.unwrap().read().ok();
-
+impl Parser for Xlsx {
+    fn new(path: &str) -> Result<Self, Error> {
+        Self::open(path)
     }
 
+    fn read(&mut self) -> Result<&[u8], Error> {
+        let mut workbook = open_workbook_auto(&self.path)
+            .map_err(|err| Error::new(std::io::ErrorKind::Other, err))?;
+
+        let sheet_names = workbook.sheet_names();
+        let summary = sheet_names.join("\n");
+        self.mem_buffer = summary.into_bytes();
+
+        Ok(&self.mem_buffer)
+    }
+
+    fn metadata(&self) -> Result<ParserMetadata, Error> {
+        ParserMetadata::from_path(&self.path, "xlsx")
+    }
+}
+
+mod tests {
+    use crate::parser::xlsx::Xlsx;
+    use crate::parser::Parser;
+
+    #[test]
+    fn test_read_excel() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let path = format!("{}/../../data/excel_test.xlsx", manifest_dir);
+
+        let xlsx_file = Xlsx::new(&path);
+        assert!(xlsx_file.is_ok(), "failed to open xlsx file: {}", path);
+
+        let mut parser = xlsx_file.unwrap();
+        let data = parser.read().expect("read failed");
+        assert!(!data.is_empty(), "parsed data should not be empty");
+    }
 }
