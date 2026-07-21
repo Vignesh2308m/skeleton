@@ -3,4 +3,4 @@
 	url = https://github.com/Vignesh2308m/calamine.git
 [submodule "external/pdf-rs"]
 	path = external/pdf-rs
-	url = https://github.com/pdf-rs/pdf.git
+	url = https://github.com/Vignesh2308m/pdf-rs.git
