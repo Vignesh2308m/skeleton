@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufReader, Error, Read};
 
-use super::{Parser, ParserMetadata};
+use super::{Parser, DocumentParser};
 
 const SIZE: usize = 4096;
 
@@ -71,8 +71,8 @@ impl Parser for Text {
         self.read_line()
     }
 
-    fn metadata(&self) -> Result<ParserMetadata, Error> {
-        ParserMetadata::from_path(&self.path, "text")
+    fn metadata(&self) -> Result<DocumentParser, Error> {
+        DocumentParser::from_path(&self.path, "text")
     }
 }
 

@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufReader, Error};
 
-use super::{Parser, ParserMetadata};
+use super::{Parser, DocumentParser};
 
 const SIZE: usize = 1024;
 
@@ -49,8 +49,8 @@ impl Parser for Pdf {
         Ok(&self.mem_buffer)
     }
 
-    fn metadata(&self) -> Result<ParserMetadata, Error> {
-        ParserMetadata::from_path(&self.path, "pdf")
+    fn metadata(&self) -> Result<DocumentParser, Error> {
+        DocumentParser::from_path(&self.path, "pdf")
     }
 }
 

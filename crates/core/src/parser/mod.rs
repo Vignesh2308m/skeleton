@@ -16,17 +16,17 @@ pub trait Parser {
 
     fn read(&mut self) -> Result<&[u8], Error>;
 
-    fn metadata(&self) -> Result<ParserMetadata, Error>;
+    fn metadata(&self) -> Result<DocumentParser, Error>;
 }
 
 #[derive(Debug, Clone)]
-pub struct ParserMetadata {
+pub struct DocumentParser {
     pub path: String,
     pub kind: &'static str,
     pub size_bytes: u64,
 }
 
-impl ParserMetadata {
+impl DocumentParser {
     pub fn from_path(path: &str, kind: &'static str) -> Result<Self, Error> {
         let metadata = fs::metadata(path)?;
 

@@ -3,7 +3,7 @@ use std::io::{BufReader, Error};
 
 use calamine::{Reader, open_workbook_auto};
 
-use super::{Parser, ParserMetadata};
+use super::{Parser, DocumentParser};
 
 const SIZE: usize = 32;
 
@@ -42,8 +42,8 @@ impl Parser for Xlsx {
         Ok(&self.mem_buffer)
     }
 
-    fn metadata(&self) -> Result<ParserMetadata, Error> {
-        ParserMetadata::from_path(&self.path, "xlsx")
+    fn metadata(&self) -> Result<DocumentParser, Error> {
+        DocumentParser::from_path(&self.path, "xlsx")
     }
 }
 
