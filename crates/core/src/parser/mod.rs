@@ -9,24 +9,24 @@ pub use self::pdf::Pdf;
 pub use self::txt::Text;
 pub use self::xlsx::Xlsx;
 
-pub trait Parser {
+pub trait DocumentParser {
     fn new(path: &str) -> Result<Self, Error>
     where
         Self: Sized;
 
     fn read(&mut self) -> Result<&[u8], Error>;
 
-    fn metadata(&self) -> Result<DocumentParser, Error>;
+    fn metadata(&self) -> Result<ParserMetadata, Error>;
 }
 
 #[derive(Debug, Clone)]
-pub struct DocumentParser {
+pub struct ParserMetadata {
     pub path: String,
     pub kind: &'static str,
     pub size_bytes: u64,
 }
 
-impl DocumentParser {
+impl ParserMetadata {
     pub fn from_path(path: &str, kind: &'static str) -> Result<Self, Error> {
         let metadata = fs::metadata(path)?;
 

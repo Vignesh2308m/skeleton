@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufReader, Error, Read};
 
-use super::{Parser, DocumentParser};
+use super::{DocumentParser, ParserMetadata};
 
 const SIZE: usize = 4096;
 
@@ -62,7 +62,7 @@ impl Text {
     }
 }
 
-impl Parser for Text {
+impl DocumentParser for Text {
     fn new(path: &str) -> Result<Self, Error> {
         Self::open(path)
     }
@@ -71,15 +71,15 @@ impl Parser for Text {
         self.read_line()
     }
 
-    fn metadata(&self) -> Result<DocumentParser, Error> {
-        DocumentParser::from_path(&self.path, "text")
+    fn metadata(&self) -> Result<ParserMetadata, Error> {
+        ParserMetadata::from_path(&self.path, "text")
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::parser::txt::Text;
-    use crate::parser::Parser;
+    use crate::parser::DocumentParser;
 
     #[test]
     fn test_sample() {

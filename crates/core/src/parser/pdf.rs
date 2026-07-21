@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufReader, Error};
 
-use super::{Parser, DocumentParser};
+use super::{DocumentParser, ParserMetadata};
 
 const SIZE: usize = 1024;
 
@@ -24,7 +24,7 @@ impl Pdf {
     }
 }
 
-impl Parser for Pdf {
+impl DocumentParser for Pdf {
     fn new(path: &str) -> Result<Self, Error> {
         Self::open(path)
     }
@@ -49,14 +49,14 @@ impl Parser for Pdf {
         Ok(&self.mem_buffer)
     }
 
-    fn metadata(&self) -> Result<DocumentParser, Error> {
-        DocumentParser::from_path(&self.path, "pdf")
+    fn metadata(&self) -> Result<ParserMetadata, Error> {
+        ParserMetadata::from_path(&self.path, "pdf")
     }
 }
 
 mod tests {
     use crate::parser::pdf::Pdf;
-    use crate::parser::Parser;
+    use crate::parser::DocumentParser;
 
     #[test]
     fn test_read_pdf() {
