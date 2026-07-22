@@ -4,3 +4,6 @@
 [submodule "external/pdf-rs"]
 	path = external/pdf-rs
 	url = https://github.com/Vignesh2308m/pdf-rs.git
+[submodule ".pdf-rs"]
+	path = .pdf-rs
+	url = https://github.com/Vignesh2308m/pdf-rs.git
