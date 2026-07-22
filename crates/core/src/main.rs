@@ -4,9 +4,12 @@ use std::io::ErrorKind::InvalidInput;
 use std::io::{BufReader};
 
 pub mod parser;
-pub mod  matcher;
+pub mod matcher;
+pub mod search;
+pub mod printer;
 use crate::matcher::find_match;
 use crate::matcher::Match;
+use crate::printer::Printer;
 
 struct Args{
     path: String,
