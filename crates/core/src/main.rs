@@ -1,58 +1,118 @@
-use std::{env};
-use std::fs::File;
-use std::io::ErrorKind::InvalidInput;
-use std::io::{BufReader};
+use std::env;
+use std::fs;
+use std::io::{Error, ErrorKind::InvalidInput, Write};
 
-pub mod parser;
 pub mod matcher;
-pub mod search;
+pub mod parser;
 pub mod printer;
-use crate::matcher::find_match;
-use crate::matcher::Match;
-use crate::printer::Printer;
+pub mod search;
 
-struct Args{
-    path: String,
-    pattern: Vec<u8>
+use crate::parser::{DocumentParser, Pdf, Text, Xlsx};
+use crate::printer::{PrettyPrinter, Printer};
+use crate::search::Search;
+
+struct Args {
+    pattern: Vec<u8>,
+    search_dir: String,
 }
 
-fn get_args() -> Result<Args, std::io::Error> {
+fn get_args() -> Result<Args, Error> {
     let mut args = env::args();
 
-    args.next(); // executable name
-
-    let path = args
-        .next()
-        .ok_or_else(|| std::io::Error::new(InvalidInput, "Missing path"))?;
+    args.next();
 
     let pattern = args
         .next()
-        .ok_or_else(|| std::io::Error::new(InvalidInput, "Missing pattern"))?
+        .ok_or_else(|| Error::new(InvalidInput, "Missing pattern"))?
         .into_bytes();
 
-    Ok(Args { path, pattern })
+    let search_dir = args
+        .next()
+        .unwrap_or_else(|| format!("{}/../../data", env!("CARGO_MANIFEST_DIR")));
+
+    Ok(Args { pattern, search_dir })
 }
 
-fn print_pretty(matches: Vec<Match>) -> Result<(), std::io::Error>{
-    for m in matches{
-        println!("{}| {}, {}", m.line_no, m.start, m.end);
+fn search_directory(
+    search_dir: &str,
+    pattern: &[u8],
+    printer: &impl Printer,
+    writer: &mut dyn Write,
+) -> Result<bool, Error> {
+    let mut found_matches = false;
+    let mut entries = fs::read_dir(search_dir)?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| path.is_file())
+        .collect::<Vec<_>>();
+    entries.sort();
+
+    for path in entries {
+        let path_str = path.to_string_lossy().into_owned();
+        let extension = path
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default()
+            .to_lowercase();
+
+        let matches = match extension.as_str() {
+            "txt" => {
+                let mut parser = Text::new(&path_str)?;
+                parser.search(pattern)?
+            }
+            "pdf" => {
+                let mut parser = Pdf::new(&path_str)?;
+                parser.search(pattern)?
+            }
+            "xlsx" => {
+                let mut parser = Xlsx::new(&path_str)?;
+                parser.search(pattern)?
+            }
+            _ => continue,
+        };
+
+        if matches.is_empty() {
+            continue;
+        }
+
+        found_matches = true;
+        writeln!(writer, "{}", path_str)?;
+        printer.print(&matches, writer)?;
     }
+
+    Ok(found_matches)
+}
+
+fn main() -> Result<(), Error> {
+    let arg = get_args()?;
+    let printer = PrettyPrinter;
+    let mut stdout = std::io::stdout();
+
+    let found_matches = search_directory(&arg.search_dir, &arg.pattern, &printer, &mut stdout)?;
+
+    if !found_matches {
+        writeln!(stdout, "no")?;
+    }
+
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::{PrettyPrinter, search_directory};
 
-fn main() -> Result<(), std::io::Error> {
+    #[test]
+    fn search_directory_finds_matches_in_data_files() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let search_dir = format!("{}/../../data", manifest_dir);
+        let printer = PrettyPrinter;
+        let mut output = Vec::new();
 
-    let arg = get_args()?;
+        let found = search_directory(&search_dir, b"abcde", &printer, &mut output)
+            .expect("searching the data directory should work");
 
-    // Loading File Buffer
-    let file = File::open(arg.path)?;
-
-    let buffer = BufReader::new(file);
-
-    let matches = find_match(buffer, arg.pattern.as_slice())?; 
-    
-    print_pretty(matches)?;
-    
-    Ok(())
+        assert!(found, "expected at least one match in the data directory");
+        let rendered = String::from_utf8(output).expect("output should be utf-8");
+        assert!(rendered.contains("intro.txt"));
+    }
 }
