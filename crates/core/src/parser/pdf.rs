@@ -30,22 +30,32 @@ impl DocumentParser for Pdf {
     }
 
     fn read(&mut self) -> Result<&[u8], Error> {
-        //let path = self.path.clone();
         let file = pdf::file::FileOptions::uncached()
             .open(&self.path)
             .map_err(|err| Error::new(std::io::ErrorKind::Other, err))?;
 
-        let mut summary = String::new();
-        summary.push_str(&format!("pages: {}\n", file.num_pages()));
+        let mut summary = Vec::new();
+        for page_index in 0..file.num_pages() {
+            if !summary.is_empty() {
+                summary.push(b'\n');
+            }
+
+            let page_label = format!("page:{}", page_index + 1);
+            summary.extend_from_slice(page_label.as_bytes());
+        }
 
         if let Some(ref info) = file.trailer.info_dict {
             let title = info.title.as_ref().map(|p| p.to_string_lossy());
             if let Some(t) = title {
-                summary.push_str(&format!("title: {}\n", t));
+                if !summary.is_empty() {
+                    summary.push(b'\n');
+                }
+                let title_line = format!("title:{}", t);
+                summary.extend_from_slice(title_line.as_bytes());
             }
         }
 
-        self.mem_buffer = summary.into_bytes();
+        self.mem_buffer = summary;
         Ok(&self.mem_buffer)
     }
 
@@ -69,5 +79,23 @@ mod tests {
         let mut parser = pdf_file.unwrap();
         let data = parser.read().expect("read failed");
         assert!(!data.is_empty(), "parsed data should not be empty");
+    }
+
+    #[test]
+    fn test_read_pdf_reads_page_numbers() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let path = format!("{}/../../data/test.pdf", manifest_dir);
+
+        let pdf_file = Pdf::new(&path);
+        assert!(pdf_file.is_ok(), "failed to open pdf file: {}", path);
+
+        let mut parser = pdf_file.unwrap();
+        let data = parser.read().expect("read failed");
+        let output = String::from_utf8_lossy(data);
+
+        assert!(
+            output.contains("page:"),
+            "expected page-number bytes in parser output, got: {output}"
+        );
     }
 }
