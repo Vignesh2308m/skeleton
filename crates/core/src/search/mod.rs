@@ -1,19 +1,20 @@
 use std::io::{Error, ErrorKind};
 
-use crate::search::matcher::Match;
+use crate::search::matcher::{SearchMatch, MatchMetadata};
 use crate::parser::DocumentParser;
+use std::path::PathBuf;
 
 pub mod matcher;
 
 pub trait Search {
-    fn search(&mut self, pattern: &[u8]) -> Result<Vec<Match>, Error>;
+    fn search(&mut self, pattern: &[u8]) -> Result<Vec<SearchMatch>, Error>;
 }
 
 impl<T> Search for T
 where
     T: DocumentParser,
 {
-    fn search(&mut self, pattern: &[u8]) -> Result<Vec<Match>, Error> {
+    fn search(&mut self, pattern: &[u8]) -> Result<Vec<SearchMatch>, Error> {
         if pattern.is_empty() {
             return Err(Error::new(
                 ErrorKind::InvalidInput,
@@ -21,16 +22,35 @@ where
             ));
         }
 
+        let metadata = self.metadata()?;
         let data = self.read()?;
         let mut matches = Vec::new();
         let mut line_no = 0usize;
 
         for (index, window) in data.windows(pattern.len()).enumerate() {
             if window == pattern {
-                matches.push(Match {
-                    line_no,
-                    start: index,
-                    end: index + pattern.len() - 1,
+                let meta = match metadata.kind {
+                    "text" => MatchMetadata::Text {
+                        line: line_no,
+                        column: index,
+                    },
+                    "pdf" => MatchMetadata::Pdf { page: 0 },
+                    "xlsx" => MatchMetadata::Xlsx {
+                        sheet: "".to_string(),
+                        row: 0,
+                        column: 0,
+                    },
+                    _ => MatchMetadata::Text {
+                        line: line_no,
+                        column: index,
+                    },
+                };
+
+                matches.push(SearchMatch {
+                    file: PathBuf::from(metadata.path.clone()),
+                    start: index as u64,
+                    end: (index + pattern.len() - 1) as u64,
+                    metadata: meta,
                 });
             }
 

@@ -1,14 +1,22 @@
 use std::fs::File;
 use std::io::{BufReader, Read};
+use std::path::PathBuf;
 
-pub struct Match {
-    pub line_no: usize,
-    pub start: usize,
-    pub end: usize,
+pub struct SearchMatch {
+    pub file: PathBuf,
+    pub start: u64,
+    pub end: u64,
+    pub metadata: MatchMetadata,
 }
 
-/// SIMD-accelerated substring search using the `memchr` crate's `memmem::Finder`.
-pub fn find_match(mut buf: BufReader<File>, pattern: &[u8]) -> Result<Vec<Match>, std::io::Error> {
+pub enum MatchMetadata {
+    Text { line: usize, column: usize },
+    Pdf { page: usize },
+    Xlsx { sheet: String, row: u32, column: u32 },
+}
+
+/// SIMD-accelerated substring search over the provided buffer. Returns file-aware `SearchMatch`s.
+pub fn find_match(mut buf: BufReader<File>, path: PathBuf, pattern: &[u8]) -> Result<Vec<SearchMatch>, std::io::Error> {
     let mut data = Vec::new();
     buf.read_to_end(&mut data)?;
 
@@ -17,7 +25,7 @@ pub fn find_match(mut buf: BufReader<File>, pattern: &[u8]) -> Result<Vec<Match>
     }
 
     let finder = memchr::memmem::Finder::new(pattern);
-    let mut matches: Vec<Match> = Vec::new();
+    let mut matches: Vec<SearchMatch> = Vec::new();
 
     // Precompute newline indices for fast line number lookup.
     let mut newline_positions: Vec<usize> = Vec::new();
@@ -28,16 +36,27 @@ pub fn find_match(mut buf: BufReader<File>, pattern: &[u8]) -> Result<Vec<Match>
     }
 
     for m in finder.find_iter(&data) {
-        let start = m;
-        let end = m + pattern.len() - 1;
+        let start = m as u64;
+        let end = (m + pattern.len() - 1) as u64;
 
-        // Count number of newlines strictly before `start` to derive 0-based line number.
-        let newline_count = match newline_positions.binary_search(&start) {
+        let newline_count = match newline_positions.binary_search(&m) {
             Ok(idx) => idx,
             Err(idx) => idx,
         };
 
-        matches.push(Match { line_no: newline_count, start, end });
+        let column = if newline_count == 0 {
+            m
+        } else {
+            let prev = newline_positions[newline_count - 1];
+            m - prev - 1
+        };
+
+        let metadata = MatchMetadata::Text {
+            line: newline_count,
+            column,
+        };
+
+        matches.push(SearchMatch { file: path.clone(), start, end, metadata });
     }
 
     Ok(matches)
