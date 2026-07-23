@@ -1,7 +1,9 @@
 use std::io::{Error, ErrorKind};
 
-use crate::matcher::Match;
+use crate::search::matcher::Match;
 use crate::parser::DocumentParser;
+
+pub mod matcher;
 
 pub trait Search {
     fn search(&mut self, pattern: &[u8]) -> Result<Vec<Match>, Error>;

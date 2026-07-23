@@ -2,7 +2,6 @@ use std::env;
 use std::fs;
 use std::io::{Error, ErrorKind::InvalidInput, Write};
 
-pub mod matcher;
 pub mod parser;
 pub mod printer;
 pub mod search;

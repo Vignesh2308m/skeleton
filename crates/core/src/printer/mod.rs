@@ -1,6 +1,6 @@
 use std::io::{Error, Write};
 
-use crate::matcher::Match;
+use crate::search::matcher::Match;
 
 pub trait Printer {
     fn print(&self, matches: &[Match], writer: &mut dyn Write) -> Result<(), Error>;
@@ -20,7 +20,7 @@ impl Printer for PrettyPrinter {
 #[cfg(test)]
 mod tests {
     use super::{PrettyPrinter, Printer};
-    use crate::matcher::Match;
+    use crate::search::matcher::Match;
 
     #[test]
     fn printer_formats_matches() {
