@@ -7,3 +7,4 @@ edition = "2024"
 flate2 = "1"
 calamine = {path = "../../external/calamine"}
 pdf = { path = "../../external/pdf-rs/pdf" }
+memchr = "2"
