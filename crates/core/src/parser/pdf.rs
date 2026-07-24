@@ -9,8 +9,18 @@ pub struct Pdf {
     path: String,
     file_buffer: BufReader<File>,
     mem_buffer: Vec<u8>,
+    metadata: PdfMetadata,
 }
 
+pub struct PdfMetadata {
+    pub page: usize,
+}
+
+impl PdfMetadata {
+    fn new() -> PdfMetadata {
+        PdfMetadata { page: 0 }
+    }
+}
 impl Pdf {
     fn open(path: &str) -> Result<Pdf, Error> {
         let file = File::open(path)?;
@@ -20,6 +30,7 @@ impl Pdf {
             path: path.to_string(),
             file_buffer: buffer,
             mem_buffer: vec![0u8; SIZE],
+            metadata: PdfMetadata::new(),
         })
     }
 }
@@ -34,8 +45,10 @@ impl DocumentParser for Pdf {
             .open(&self.path)
             .map_err(|err| Error::new(std::io::ErrorKind::Other, err))?;
 
+        self.metadata.page = file.num_pages() as usize;
+
         let mut summary = Vec::new();
-        for page_index in 0..file.num_pages() {
+        for page_index in 0..self.metadata.page {
             if !summary.is_empty() {
                 summary.push(b'\n');
             }
@@ -60,7 +73,13 @@ impl DocumentParser for Pdf {
     }
 
     fn metadata(&self) -> Result<ParserMetadata, Error> {
-        ParserMetadata::from_path(&self.path, "pdf")
+        let mut metadata = ParserMetadata::from_path(&self.path, "pdf")?;
+        metadata.page = self.metadata.page;
+        Ok(metadata)
+    }
+
+    fn current_page(&self) -> usize {
+        self.metadata.page
     }
 }
 
@@ -96,6 +115,23 @@ mod tests {
         assert!(
             output.contains("page:"),
             "expected page-number bytes in parser output, got: {output}"
+        );
+    }
+
+    #[test]
+    fn test_read_pdf_updates_page_metadata() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let path = format!("{}/../../data/test.pdf", manifest_dir);
+
+        let pdf_file = Pdf::new(&path);
+        assert!(pdf_file.is_ok(), "failed to open pdf file: {}", path);
+
+        let mut parser = pdf_file.unwrap();
+        parser.read().expect("read failed");
+
+        assert!(
+            parser.metadata.page > 0,
+            "expected parser metadata to track a page number after reading"
         );
     }
 }

@@ -22,8 +22,9 @@ where
             ));
         }
 
+        let data = self.read()?.to_vec();
         let metadata = self.metadata()?;
-        let data = self.read()?;
+        let page = self.current_page();
         let mut matches = Vec::new();
         let mut line_no = 0usize;
 
@@ -34,7 +35,7 @@ where
                         line: line_no,
                         column: index,
                     },
-                    "pdf" => MatchMetadata::Pdf { page: 0 },
+                    "pdf" => MatchMetadata::Pdf { page },
                     "xlsx" => MatchMetadata::Xlsx {
                         sheet: "".to_string(),
                         row: 0,
@@ -66,8 +67,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::Search;
+    use crate::parser::pdf::Pdf;
     use crate::parser::txt::Text;
     use crate::parser::DocumentParser;
+    use crate::search::matcher::MatchMetadata;
 
     #[test]
     fn search_trait_finds_pattern_in_text() {
@@ -78,5 +81,21 @@ mod tests {
         let matches = parser.search(b"abcde").expect("search failed");
 
         assert!(!matches.is_empty(), "expected at least one match");
+    }
+
+    #[test]
+    fn search_trait_uses_pdf_page_number() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let path = format!("{}/../../data/test.pdf", manifest_dir);
+
+        let mut parser = Pdf::new(&path).expect("failed to open pdf file");
+        let matches = parser.search(b"page:").expect("search failed");
+
+        assert!(!matches.is_empty(), "expected at least one pdf match");
+        match &matches[0].metadata {
+            MatchMetadata::Pdf { page } => assert!(*page > 0, "expected a non-zero pdf page number"),
+            MatchMetadata::Text { .. } => panic!("expected pdf metadata but got text metadata"),
+            MatchMetadata::Xlsx { .. } => panic!("expected pdf metadata but got xlsx metadata"),
+        }
     }
 }

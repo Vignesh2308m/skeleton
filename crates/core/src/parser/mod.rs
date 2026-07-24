@@ -17,13 +17,16 @@ pub trait DocumentParser {
     fn read(&mut self) -> Result<&[u8], Error>;
 
     fn metadata(&self) -> Result<ParserMetadata, Error>;
-}
+    fn current_page(&self) -> usize {
+        0
+    }}
 
 #[derive(Debug, Clone)]
 pub struct ParserMetadata {
     pub path: String,
     pub kind: &'static str,
     pub size_bytes: u64,
+    pub page: usize,
 }
 
 impl ParserMetadata {
@@ -34,6 +37,7 @@ impl ParserMetadata {
             path: path.to_string(),
             kind,
             size_bytes: metadata.len(),
+            page: 0,
         })
     }
 }
