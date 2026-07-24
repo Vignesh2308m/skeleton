@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufReader, Error};
 
-use super::{DocumentParser, ParserMetadata};
+use super::{DocumentParser, ParserMetadata, ParserMetadataDetails};
 
 const SIZE: usize = 1024;
 
@@ -74,7 +74,9 @@ impl DocumentParser for Pdf {
 
     fn metadata(&self) -> Result<ParserMetadata, Error> {
         let mut metadata = ParserMetadata::from_path(&self.path, "pdf")?;
-        metadata.page = self.metadata.page;
+        if let ParserMetadataDetails::Pdf { page } = &mut metadata.details {
+            *page = self.metadata.page;
+        }
         Ok(metadata)
     }
 

@@ -3,7 +3,7 @@ use std::io::{BufReader, Error};
 
 use calamine::{Reader, open_workbook_auto};
 
-use super::{DocumentParser, ParserMetadata};
+use super::{DocumentParser, ParserMetadata, ParserMetadataDetails};
 
 const SIZE: usize = 32;
 
@@ -99,9 +99,11 @@ impl DocumentParser for Xlsx {
 
     fn metadata(&self) -> Result<ParserMetadata, Error> {
         let mut metadata = ParserMetadata::from_path(&self.path, "xlsx")?;
-        metadata.sheet = self.metadata.sheet.clone();
-        metadata.row = self.metadata.row;
-        metadata.column = self.metadata.column;
+        if let ParserMetadataDetails::Xlsx { sheet, row, column } = &mut metadata.details {
+            *sheet = self.metadata.sheet.clone();
+            *row = self.metadata.row;
+            *column = self.metadata.column;
+        }
         Ok(metadata)
     }
 
@@ -165,8 +167,13 @@ mod tests {
         parser.read().expect("read failed");
 
         let metadata = parser.metadata().expect("metadata failed");
-        assert!(!metadata.sheet.is_empty(), "expected parser metadata to track a sheet name");
-        assert!(metadata.row >= 0, "expected row metadata to be set");
-        assert!(metadata.column >= 0, "expected column metadata to be set");
+        match &metadata.details {
+            super::ParserMetadataDetails::Xlsx { sheet, row, column } => {
+                assert!(!sheet.is_empty(), "expected parser metadata to track a sheet name");
+                assert!(*row >= 0, "expected row metadata to be set");
+                assert!(*column >= 0, "expected column metadata to be set");
+            }
+            other => panic!("expected xlsx metadata but got: {other:?}"),
+        }
     }
 }

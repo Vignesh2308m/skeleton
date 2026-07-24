@@ -1,7 +1,7 @@
 use std::io::{Error, ErrorKind};
 
 use crate::search::matcher::{SearchMatch, MatchMetadata};
-use crate::parser::DocumentParser;
+use crate::parser::{DocumentParser, ParserMetadataDetails};
 use std::path::PathBuf;
 
 pub mod matcher;
@@ -33,20 +33,16 @@ where
 
         for (index, window) in data.windows(pattern.len()).enumerate() {
             if window == pattern {
-                let meta = match metadata.kind {
-                    "text" => MatchMetadata::Text {
+                let meta = match &metadata.details {
+                    ParserMetadataDetails::Text => MatchMetadata::Text {
                         line: line_no,
                         column: index,
                     },
-                    "pdf" => MatchMetadata::Pdf { page },
-                    "xlsx" => MatchMetadata::Xlsx {
+                    ParserMetadataDetails::Pdf { page } => MatchMetadata::Pdf { page: *page },
+                    ParserMetadataDetails::Xlsx { sheet, row, column } => MatchMetadata::Xlsx {
                         sheet: sheet.clone(),
-                        row,
-                        column,
-                    },
-                    _ => MatchMetadata::Text {
-                        line: line_no,
-                        column: index,
+                        row: *row,
+                        column: *column,
                     },
                 };
 
