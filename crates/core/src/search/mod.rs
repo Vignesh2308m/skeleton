@@ -25,6 +25,9 @@ where
         let data = self.read()?.to_vec();
         let metadata = self.metadata()?;
         let page = self.current_page();
+        let sheet = self.current_sheet();
+        let row = self.current_row();
+        let column = self.current_column();
         let mut matches = Vec::new();
         let mut line_no = 0usize;
 
@@ -37,9 +40,9 @@ where
                     },
                     "pdf" => MatchMetadata::Pdf { page },
                     "xlsx" => MatchMetadata::Xlsx {
-                        sheet: "".to_string(),
-                        row: 0,
-                        column: 0,
+                        sheet: sheet.clone(),
+                        row,
+                        column,
                     },
                     _ => MatchMetadata::Text {
                         line: line_no,

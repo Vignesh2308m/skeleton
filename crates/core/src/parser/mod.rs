@@ -17,9 +17,23 @@ pub trait DocumentParser {
     fn read(&mut self) -> Result<&[u8], Error>;
 
     fn metadata(&self) -> Result<ParserMetadata, Error>;
+
     fn current_page(&self) -> usize {
         0
-    }}
+    }
+
+    fn current_sheet(&self) -> String {
+        String::new()
+    }
+
+    fn current_row(&self) -> u32 {
+        0
+    }
+
+    fn current_column(&self) -> u32 {
+        0
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct ParserMetadata {
@@ -27,6 +41,9 @@ pub struct ParserMetadata {
     pub kind: &'static str,
     pub size_bytes: u64,
     pub page: usize,
+    pub sheet: String,
+    pub row: u32,
+    pub column: u32,
 }
 
 impl ParserMetadata {
@@ -38,6 +55,9 @@ impl ParserMetadata {
             kind,
             size_bytes: metadata.len(),
             page: 0,
+            sheet: String::new(),
+            row: 0,
+            column: 0,
         })
     }
 }

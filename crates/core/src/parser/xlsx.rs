@@ -11,6 +11,23 @@ pub struct Xlsx {
     path: String,
     file_buffer: BufReader<File>,
     mem_buffer: Vec<u8>,
+    metadata: XlsxMetadata,
+}
+
+pub struct XlsxMetadata {
+    pub sheet: String,
+    pub row: u32,
+    pub column: u32,
+}
+
+impl XlsxMetadata {
+    fn new() -> Self {
+        Self {
+            sheet: String::new(),
+            row: 0,
+            column: 0,
+        }
+    }
 }
 
 impl Xlsx {
@@ -22,6 +39,7 @@ impl Xlsx {
             path: path.to_string(),
             file_buffer: buffer,
             mem_buffer: vec![0u8; SIZE],
+            metadata: XlsxMetadata::new(),
         })
     }
 
@@ -52,10 +70,17 @@ impl DocumentParser for Xlsx {
         let sheet_names = workbook.sheet_names();
         let mut cell_addresses = Vec::new();
 
+        self.metadata = XlsxMetadata::new();
+
         for sheet_name in sheet_names.iter() {
             if let Ok(range) = workbook.worksheet_range(sheet_name) {
+                self.metadata.sheet = sheet_name.to_string();
+
                 for (row_index, row) in range.rows().enumerate() {
                     for (column_index, _) in row.iter().enumerate() {
+                        self.metadata.row = row_index as u32;
+                        self.metadata.column = column_index as u32;
+
                         if !cell_addresses.is_empty() {
                             cell_addresses.push(b'\n');
                         }
@@ -73,7 +98,23 @@ impl DocumentParser for Xlsx {
     }
 
     fn metadata(&self) -> Result<ParserMetadata, Error> {
-        ParserMetadata::from_path(&self.path, "xlsx")
+        let mut metadata = ParserMetadata::from_path(&self.path, "xlsx")?;
+        metadata.sheet = self.metadata.sheet.clone();
+        metadata.row = self.metadata.row;
+        metadata.column = self.metadata.column;
+        Ok(metadata)
+    }
+
+    fn current_sheet(&self) -> String {
+        self.metadata.sheet.clone()
+    }
+
+    fn current_row(&self) -> u32 {
+        self.metadata.row
+    }
+
+    fn current_column(&self) -> u32 {
+        self.metadata.column
     }
 }
 
@@ -110,5 +151,22 @@ mod tests {
             output.contains("A1") || output.contains("B1") || output.contains("C1"),
             "expected cell address bytes in parser output, got: {output}"
         );
+    }
+
+    #[test]
+    fn test_read_excel_updates_cell_metadata() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let path = format!("{}/../../data/excel_test.xlsx", manifest_dir);
+
+        let xlsx_file = Xlsx::new(&path);
+        assert!(xlsx_file.is_ok(), "failed to open xlsx file: {}", path);
+
+        let mut parser = xlsx_file.unwrap();
+        parser.read().expect("read failed");
+
+        let metadata = parser.metadata().expect("metadata failed");
+        assert!(!metadata.sheet.is_empty(), "expected parser metadata to track a sheet name");
+        assert!(metadata.row >= 0, "expected row metadata to be set");
+        assert!(metadata.column >= 0, "expected column metadata to be set");
     }
 }
