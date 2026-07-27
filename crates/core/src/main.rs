@@ -29,7 +29,10 @@ fn get_args() -> Result<Args, Error> {
         .next()
         .unwrap_or_else(|| format!("{}/../../data", env!("CARGO_MANIFEST_DIR")));
 
-    Ok(Args { pattern, search_dir })
+    Ok(Args {
+        pattern,
+        search_dir,
+    })
 }
 
 fn search_directory(
