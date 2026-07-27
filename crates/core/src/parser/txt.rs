@@ -3,14 +3,10 @@ use std::io::{BufReader, Error, Read};
 
 use super::{DocumentParser, ParserMetadata};
 
-const SIZE: usize = 4096;
-
 pub struct Text {
     path: String,
     file_buffer: BufReader<File>,
     mem_buffer: Vec<u8>,
-    line_offset: usize,
-    byte_offset: usize,
 }
 
 impl Text {
@@ -21,44 +17,8 @@ impl Text {
         Ok(Text {
             path: path.to_string(),
             file_buffer: buffer,
-            mem_buffer: vec![0u8; SIZE],
-            line_offset: 0,
-            byte_offset: 0,
+            mem_buffer: Vec::new(),
         })
-    }
-
-    fn read_line(&mut self) -> Result<&[u8], Error> {
-        let mut start = 0;
-        let mut end = 0;
-        let mut found = false;
-
-        loop {
-            if self.line_offset == self.mem_buffer.len() {
-                self.mem_buffer.resize(self.mem_buffer.len() + SIZE, 0u8);
-            }
-
-            let n = self.file_buffer.read(&mut self.mem_buffer[self.line_offset..])?;
-            self.line_offset += n;
-
-            if self.line_offset <= self.byte_offset {
-                return Err(std::io::Error::from(std::io::ErrorKind::UnexpectedEof));
-            }
-
-            for i in self.byte_offset..self.line_offset {
-                if self.mem_buffer[i] == b'\n' {
-                    start = self.byte_offset;
-                    end = i;
-                    self.byte_offset = i + 1;
-                    found = true;
-                    break;
-                }
-            }
-
-            if found {
-                break;
-            }
-        }
-        Ok(&self.mem_buffer[start..end])
     }
 }
 
@@ -68,7 +28,9 @@ impl DocumentParser for Text {
     }
 
     fn read(&mut self) -> Result<&[u8], Error> {
-        self.read_line()
+        self.mem_buffer.clear();
+        self.file_buffer.read_to_end(&mut self.mem_buffer)?;
+        Ok(&self.mem_buffer)
     }
 
     fn metadata(&self) -> Result<ParserMetadata, Error> {
@@ -78,8 +40,8 @@ impl DocumentParser for Text {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::txt::Text;
     use crate::parser::DocumentParser;
+    use crate::parser::txt::Text;
 
     #[test]
     fn test_sample() {
@@ -98,8 +60,7 @@ mod tests {
             panic!("Error");
         }
         let mut txt_file = txt_file.unwrap();
-        while let Ok(value) = txt_file.read_line() {
-            println!("{:?}", &String::from_utf8(Vec::from(value)));
-        }
+        let value = txt_file.read().expect("read failed");
+        assert!(!value.is_empty());
     }
 }
