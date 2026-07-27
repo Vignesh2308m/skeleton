@@ -18,6 +18,13 @@ pub trait DocumentParser {
 
     fn metadata(&self) -> Result<ParserMetadata, Error>;
 
+    /// Describes the document location that contains a byte in `read()`'s output.
+    fn metadata_at(&self, _byte_offset: usize) -> ParserMetadataDetails {
+        self.metadata()
+            .map(|metadata| metadata.details)
+            .unwrap_or(ParserMetadataDetails::Text)
+    }
+
     fn current_page(&self) -> usize {
         0
     }
@@ -46,8 +53,14 @@ pub struct ParserMetadata {
 #[derive(Debug, Clone)]
 pub enum ParserMetadataDetails {
     Text,
-    Pdf { page: usize },
-    Xlsx { sheet: String, row: u32, column: u32 },
+    Pdf {
+        page: usize,
+    },
+    Xlsx {
+        sheet: String,
+        row: u32,
+        column: u32,
+    },
 }
 
 impl ParserMetadata {
