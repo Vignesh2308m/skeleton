@@ -1,6 +1,6 @@
 use std::io::{Error, Write};
 
-use crate::search::matcher::{SearchMatch, MatchMetadata};
+use crate::search::matcher::{MatchMetadata, SearchMatch};
 
 pub trait Printer {
     fn print(&self, matches: &[SearchMatch], writer: &mut dyn Write) -> Result<(), Error>;
@@ -19,7 +19,11 @@ impl Printer for PrettyPrinter {
                     writeln!(writer, "page {}| {}, {}", page, m.start, m.end)?;
                 }
                 MatchMetadata::Xlsx { sheet, row, column } => {
-                    writeln!(writer, "{}:{}:{}| {}, {}", sheet, row, column, m.start, m.end)?;
+                    writeln!(
+                        writer,
+                        "{}:{}:{}| {}, {}",
+                        sheet, row, column, m.start, m.end
+                    )?;
                 }
             }
         }
@@ -30,7 +34,7 @@ impl Printer for PrettyPrinter {
 #[cfg(test)]
 mod tests {
     use super::{PrettyPrinter, Printer};
-    use crate::search::matcher::{SearchMatch, MatchMetadata};
+    use crate::search::matcher::{MatchMetadata, SearchMatch};
 
     #[test]
     fn printer_formats_matches() {
@@ -39,7 +43,10 @@ mod tests {
             file: std::path::PathBuf::from("/tmp/xyz"),
             start: 10,
             end: 15,
-            metadata: MatchMetadata::Text { line: 3, column: 10 },
+            metadata: MatchMetadata::Text {
+                line: 3,
+                column: 10,
+            },
         }];
 
         let mut output = Vec::new();
