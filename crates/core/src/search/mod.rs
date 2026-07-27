@@ -101,4 +101,20 @@ mod tests {
             MatchMetadata::Xlsx { .. } => panic!("expected pdf metadata but got xlsx metadata"),
         }
     }
+
+    #[test]
+    fn search_trait_decodes_unicode_mapped_pdf_text() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let path = format!("{}/../../data/test.pdf", manifest_dir);
+
+        let mut parser = Pdf::new(&path).expect("failed to open pdf file");
+        let matches = parser.search(b"a").expect("search failed");
+
+        assert_eq!(matches.len(), 3, "expected all three PDF text matches");
+        assert!(
+            matches
+                .iter()
+                .all(|m| matches!(m.metadata, MatchMetadata::Pdf { page: 1 }))
+        );
+    }
 }

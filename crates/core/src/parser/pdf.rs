@@ -2,6 +2,8 @@ use std::io::Error;
 use std::ops::Range;
 
 use pdf::content::{Op, TextDrawAdjusted};
+use pdf::font::ToUnicodeMap;
+use pdf::primitive::PdfString;
 
 use super::{DocumentParser, ParserMetadata, ParserMetadataDetails};
 
@@ -30,6 +32,36 @@ impl Pdf {
             page_ranges: Vec::new(),
         })
     }
+
+    fn decode_text(text: &PdfString, unicode_map: Option<&ToUnicodeMap>) -> String {
+        let Some(unicode_map) = unicode_map else {
+            return text.to_string_lossy();
+        };
+
+        let bytes = text.as_bytes();
+        let mut decoded = String::new();
+
+        if bytes.len() % 2 == 0 {
+            for code in bytes.chunks_exact(2) {
+                let cid = u16::from_be_bytes([code[0], code[1]]);
+                if let Some(character) = unicode_map.get(cid) {
+                    decoded.push_str(character);
+                } else {
+                    decoded.push_str(&String::from_utf8_lossy(code));
+                }
+            }
+        } else {
+            for &code in bytes {
+                if let Some(character) = unicode_map.get(code as u16) {
+                    decoded.push_str(character);
+                } else {
+                    decoded.push(code as char);
+                }
+            }
+        }
+
+        decoded
+    }
 }
 
 impl DocumentParser for Pdf {
@@ -50,20 +82,32 @@ impl DocumentParser for Pdf {
         for (page_index, page) in file.pages().enumerate() {
             let page = page.map_err(|err| Error::other(err))?;
             let start = self.mem_buffer.len();
+            let mut unicode_map = None;
             if let Some(contents) = &page.contents {
                 for op in contents
                     .operations(&resolver)
                     .map_err(|err| Error::other(err))?
                 {
                     match op {
-                        Op::TextDraw { text } => self
-                            .mem_buffer
-                            .extend_from_slice(text.to_string_lossy().as_bytes()),
+                        Op::TextFont { name, .. } => {
+                            unicode_map = page
+                                .resources
+                                .as_ref()
+                                .and_then(|resources| resources.data().fonts.get(&name))
+                                .and_then(|font| font.load(&resolver).ok())
+                                .and_then(|font| {
+                                    font.to_unicode(&resolver).transpose().ok().flatten()
+                                });
+                        }
+                        Op::TextDraw { text } => self.mem_buffer.extend_from_slice(
+                            Self::decode_text(&text, unicode_map.as_ref()).as_bytes(),
+                        ),
                         Op::TextDrawAdjusted { array } => {
                             for item in array {
                                 if let TextDrawAdjusted::Text(text) = item {
-                                    self.mem_buffer
-                                        .extend_from_slice(text.to_string_lossy().as_bytes());
+                                    self.mem_buffer.extend_from_slice(
+                                        Self::decode_text(&text, unicode_map.as_ref()).as_bytes(),
+                                    );
                                 }
                             }
                         }
