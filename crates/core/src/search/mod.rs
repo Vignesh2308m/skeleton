@@ -1,7 +1,7 @@
 use std::io::{Error, ErrorKind};
 
-use crate::search::matcher::{SearchMatch, MatchMetadata};
 use crate::parser::{DocumentParser, ParserMetadataDetails};
+use crate::search::matcher::{MatchMetadata, SearchMatch};
 use std::path::PathBuf;
 
 pub mod matcher;
@@ -24,26 +24,25 @@ where
 
         let data = self.read()?.to_vec();
         let metadata = self.metadata()?;
-        let page = self.current_page();
-        let sheet = self.current_sheet();
-        let row = self.current_row();
-        let column = self.current_column();
         let mut matches = Vec::new();
-        let mut line_no = 0usize;
 
         for (index, window) in data.windows(pattern.len()).enumerate() {
             if window == pattern {
-                let meta = match &metadata.details {
-                    ParserMetadataDetails::Text => MatchMetadata::Text {
-                        line: line_no,
-                        column: index,
-                    },
-                    ParserMetadataDetails::Pdf { page } => MatchMetadata::Pdf { page: *page },
-                    ParserMetadataDetails::Xlsx { sheet, row, column } => MatchMetadata::Xlsx {
-                        sheet: sheet.clone(),
-                        row: *row,
-                        column: *column,
-                    },
+                let meta = match self.metadata_at(index) {
+                    ParserMetadataDetails::Text => {
+                        let line_start = data[..index]
+                            .iter()
+                            .rposition(|byte| *byte == b'\n')
+                            .map_or(0, |pos| pos + 1);
+                        MatchMetadata::Text {
+                            line: data[..index].iter().filter(|byte| **byte == b'\n').count() + 1,
+                            column: index - line_start + 1,
+                        }
+                    }
+                    ParserMetadataDetails::Pdf { page } => MatchMetadata::Pdf { page },
+                    ParserMetadataDetails::Xlsx { sheet, row, column } => {
+                        MatchMetadata::Xlsx { sheet, row, column }
+                    }
                 };
 
                 matches.push(SearchMatch {
@@ -52,10 +51,6 @@ where
                     end: (index + pattern.len() - 1) as u64,
                     metadata: meta,
                 });
-            }
-
-            if data.get(index) == Some(&b'\n') {
-                line_no += 1;
             }
         }
 
@@ -66,9 +61,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::Search;
+    use crate::parser::DocumentParser;
     use crate::parser::pdf::Pdf;
     use crate::parser::txt::Text;
-    use crate::parser::DocumentParser;
     use crate::search::matcher::MatchMetadata;
 
     #[test]
@@ -79,7 +74,13 @@ mod tests {
         let mut parser = Text::new(&path).expect("failed to open text file");
         let matches = parser.search(b"abcde").expect("search failed");
 
-        assert!(!matches.is_empty(), "expected at least one match");
+        assert_eq!(matches.len(), 3, "expected one match on each line");
+        match &matches[2].metadata {
+            MatchMetadata::Text { line, column } => {
+                assert_eq!((*line, *column), (3, 1));
+            }
+            _ => panic!("expected text metadata"),
+        }
     }
 
     #[test]
@@ -88,11 +89,14 @@ mod tests {
         let path = format!("{}/../../data/test.pdf", manifest_dir);
 
         let mut parser = Pdf::new(&path).expect("failed to open pdf file");
-        let matches = parser.search(b"page:").expect("search failed");
+        let pattern = parser.read().expect("PDF text extraction failed")[..1].to_vec();
+        let matches = parser.search(&pattern).expect("search failed");
 
         assert!(!matches.is_empty(), "expected at least one pdf match");
         match &matches[0].metadata {
-            MatchMetadata::Pdf { page } => assert!(*page > 0, "expected a non-zero pdf page number"),
+            MatchMetadata::Pdf { page } => {
+                assert!(*page > 0, "expected a non-zero pdf page number")
+            }
             MatchMetadata::Text { .. } => panic!("expected pdf metadata but got text metadata"),
             MatchMetadata::Xlsx { .. } => panic!("expected pdf metadata but got xlsx metadata"),
         }
