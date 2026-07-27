@@ -1,19 +1,18 @@
-use std::fs::File;
-use std::io::{BufReader, Error};
+use std::io::Error;
+use std::ops::Range;
 
-use calamine::{Reader, open_workbook_auto};
+use calamine::{DataType, Reader, open_workbook_auto};
 
 use super::{DocumentParser, ParserMetadata, ParserMetadataDetails};
 
-const SIZE: usize = 32;
-
 pub struct Xlsx {
     path: String,
-    file_buffer: BufReader<File>,
     mem_buffer: Vec<u8>,
     metadata: XlsxMetadata,
+    cell_ranges: Vec<(Range<usize>, XlsxMetadata)>,
 }
 
+#[derive(Clone)]
 pub struct XlsxMetadata {
     pub sheet: String,
     pub row: u32,
@@ -32,29 +31,12 @@ impl XlsxMetadata {
 
 impl Xlsx {
     fn open(path: &str) -> Result<Xlsx, Error> {
-        let file = File::open(path)?;
-        let buffer = BufReader::new(file);
-
         Ok(Xlsx {
             path: path.to_string(),
-            file_buffer: buffer,
-            mem_buffer: vec![0u8; SIZE],
+            mem_buffer: Vec::new(),
             metadata: XlsxMetadata::new(),
+            cell_ranges: Vec::new(),
         })
-    }
-
-    fn cell_reference(row: usize, column: usize) -> String {
-        let mut column_name = String::new();
-        let mut column_index = column as u32 + 1;
-
-        while column_index > 0 {
-            column_index -= 1;
-            let remainder = (column_index % 26) as u8;
-            column_name.push((b'A' + remainder) as char);
-            column_index /= 26;
-        }
-
-        column_name.chars().rev().collect::<String>() + &(row + 1).to_string()
     }
 }
 
@@ -68,31 +50,39 @@ impl DocumentParser for Xlsx {
             .map_err(|err| Error::new(std::io::ErrorKind::Other, err))?;
 
         let sheet_names = workbook.sheet_names();
-        let mut cell_addresses = Vec::new();
+        let mut text = Vec::new();
 
         self.metadata = XlsxMetadata::new();
+        self.cell_ranges.clear();
 
         for sheet_name in sheet_names.iter() {
             if let Ok(range) = workbook.worksheet_range(sheet_name) {
                 self.metadata.sheet = sheet_name.to_string();
 
                 for (row_index, row) in range.rows().enumerate() {
-                    for (column_index, _) in row.iter().enumerate() {
-                        self.metadata.row = row_index as u32;
-                        self.metadata.column = column_index as u32;
-
-                        if !cell_addresses.is_empty() {
-                            cell_addresses.push(b'\n');
+                    for (column_index, cell) in row.iter().enumerate() {
+                        if cell.is_empty() {
+                            continue;
                         }
-
-                        let cell_ref = Self::cell_reference(row_index, column_index);
-                        cell_addresses.extend_from_slice(cell_ref.as_bytes());
+                        let location = XlsxMetadata {
+                            sheet: sheet_name.to_string(),
+                            row: row_index as u32 + 1,
+                            column: column_index as u32 + 1,
+                        };
+                        self.metadata = location.clone();
+                        if !text.is_empty() {
+                            text.push(b'\n');
+                        }
+                        let start = text.len();
+                        text.extend_from_slice(cell.to_string().as_bytes());
+                        let end = text.len();
+                        self.cell_ranges.push((start..end, location));
                     }
                 }
             }
         }
 
-        self.mem_buffer = cell_addresses;
+        self.mem_buffer = text;
 
         Ok(&self.mem_buffer)
     }
@@ -118,11 +108,28 @@ impl DocumentParser for Xlsx {
     fn current_column(&self) -> u32 {
         self.metadata.column
     }
+
+    fn metadata_at(&self, byte_offset: usize) -> ParserMetadataDetails {
+        self.cell_ranges
+            .iter()
+            .find(|(range, _)| range.contains(&byte_offset))
+            .map(|(_, location)| ParserMetadataDetails::Xlsx {
+                sheet: location.sheet.clone(),
+                row: location.row,
+                column: location.column,
+            })
+            .unwrap_or(ParserMetadataDetails::Xlsx {
+                sheet: String::new(),
+                row: 0,
+                column: 0,
+            })
+    }
 }
 
+#[cfg(test)]
 mod tests {
-    use crate::parser::xlsx::Xlsx;
     use crate::parser::DocumentParser;
+    use crate::parser::xlsx::Xlsx;
 
     #[test]
     fn test_read_excel() {
@@ -138,7 +145,7 @@ mod tests {
     }
 
     #[test]
-    fn test_read_excel_reads_cell_addresses() {
+    fn test_read_excel_reads_cell_values() {
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let path = format!("{}/../../data/excel_test.xlsx", manifest_dir);
 
@@ -150,8 +157,8 @@ mod tests {
         let output = String::from_utf8_lossy(data);
 
         assert!(
-            output.contains("A1") || output.contains("B1") || output.contains("C1"),
-            "expected cell address bytes in parser output, got: {output}"
+            !output.trim().is_empty(),
+            "expected cell values in parser output, got: {output}"
         );
     }
 
@@ -169,9 +176,12 @@ mod tests {
         let metadata = parser.metadata().expect("metadata failed");
         match &metadata.details {
             super::ParserMetadataDetails::Xlsx { sheet, row, column } => {
-                assert!(!sheet.is_empty(), "expected parser metadata to track a sheet name");
-                assert!(*row >= 0, "expected row metadata to be set");
-                assert!(*column >= 0, "expected column metadata to be set");
+                assert!(
+                    !sheet.is_empty(),
+                    "expected parser metadata to track a sheet name"
+                );
+                assert!(*row > 0, "expected row metadata to be set");
+                assert!(*column > 0, "expected column metadata to be set");
             }
             other => panic!("expected xlsx metadata but got: {other:?}"),
         }
