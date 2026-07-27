@@ -1,15 +1,15 @@
-use std::fs::File;
-use std::io::{BufReader, Error};
+use std::io::Error;
+use std::ops::Range;
+
+use pdf::content::{Op, TextDrawAdjusted};
 
 use super::{DocumentParser, ParserMetadata, ParserMetadataDetails};
 
-const SIZE: usize = 1024;
-
 pub struct Pdf {
     path: String,
-    file_buffer: BufReader<File>,
     mem_buffer: Vec<u8>,
     metadata: PdfMetadata,
+    page_ranges: Vec<(Range<usize>, usize)>,
 }
 
 pub struct PdfMetadata {
@@ -23,14 +23,11 @@ impl PdfMetadata {
 }
 impl Pdf {
     fn open(path: &str) -> Result<Pdf, Error> {
-        let file = File::open(path)?;
-        let buffer = BufReader::new(file);
-
         Ok(Pdf {
             path: path.to_string(),
-            file_buffer: buffer,
-            mem_buffer: vec![0u8; SIZE],
+            mem_buffer: Vec::new(),
             metadata: PdfMetadata::new(),
+            page_ranges: Vec::new(),
         })
     }
 }
@@ -46,29 +43,41 @@ impl DocumentParser for Pdf {
             .map_err(|err| Error::new(std::io::ErrorKind::Other, err))?;
 
         self.metadata.page = file.num_pages() as usize;
+        self.mem_buffer.clear();
+        self.page_ranges.clear();
+        let resolver = file.resolver();
 
-        let mut summary = Vec::new();
-        for page_index in 0..self.metadata.page {
-            if !summary.is_empty() {
-                summary.push(b'\n');
-            }
-
-            let page_label = format!("page:{}", page_index + 1);
-            summary.extend_from_slice(page_label.as_bytes());
-        }
-
-        if let Some(ref info) = file.trailer.info_dict {
-            let title = info.title.as_ref().map(|p| p.to_string_lossy());
-            if let Some(t) = title {
-                if !summary.is_empty() {
-                    summary.push(b'\n');
+        for (page_index, page) in file.pages().enumerate() {
+            let page = page.map_err(|err| Error::other(err))?;
+            let start = self.mem_buffer.len();
+            if let Some(contents) = &page.contents {
+                for op in contents
+                    .operations(&resolver)
+                    .map_err(|err| Error::other(err))?
+                {
+                    match op {
+                        Op::TextDraw { text } => self
+                            .mem_buffer
+                            .extend_from_slice(text.to_string_lossy().as_bytes()),
+                        Op::TextDrawAdjusted { array } => {
+                            for item in array {
+                                if let TextDrawAdjusted::Text(text) = item {
+                                    self.mem_buffer
+                                        .extend_from_slice(text.to_string_lossy().as_bytes());
+                                }
+                            }
+                        }
+                        Op::TextNewline => self.mem_buffer.push(b'\n'),
+                        _ => {}
+                    }
                 }
-                let title_line = format!("title:{}", t);
-                summary.extend_from_slice(title_line.as_bytes());
+            }
+            let end = self.mem_buffer.len();
+            if end > start {
+                self.page_ranges.push((start..end, page_index + 1));
+                self.mem_buffer.push(b'\n');
             }
         }
-
-        self.mem_buffer = summary;
         Ok(&self.mem_buffer)
     }
 
@@ -83,11 +92,22 @@ impl DocumentParser for Pdf {
     fn current_page(&self) -> usize {
         self.metadata.page
     }
+
+    fn metadata_at(&self, byte_offset: usize) -> ParserMetadataDetails {
+        let page = self
+            .page_ranges
+            .iter()
+            .find(|(range, _)| range.contains(&byte_offset))
+            .map(|(_, page)| *page)
+            .unwrap_or(0);
+        ParserMetadataDetails::Pdf { page }
+    }
 }
 
+#[cfg(test)]
 mod tests {
-    use crate::parser::pdf::Pdf;
     use crate::parser::DocumentParser;
+    use crate::parser::pdf::Pdf;
 
     #[test]
     fn test_read_pdf() {
@@ -103,7 +123,7 @@ mod tests {
     }
 
     #[test]
-    fn test_read_pdf_reads_page_numbers() {
+    fn test_read_pdf_extracts_text() {
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let path = format!("{}/../../data/test.pdf", manifest_dir);
 
@@ -115,8 +135,8 @@ mod tests {
         let output = String::from_utf8_lossy(data);
 
         assert!(
-            output.contains("page:"),
-            "expected page-number bytes in parser output, got: {output}"
+            !output.trim().is_empty(),
+            "expected extracted PDF text, got: {output}"
         );
     }
 
