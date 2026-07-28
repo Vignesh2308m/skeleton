@@ -150,8 +150,8 @@ impl DocumentParser for Pdf {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::DocumentParser;
     use crate::parser::pdf::Pdf;
+    use crate::parser::DocumentParser;
 
     #[test]
     fn test_read_pdf() {

@@ -61,9 +61,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::Search;
-    use crate::parser::DocumentParser;
     use crate::parser::pdf::Pdf;
     use crate::parser::txt::Text;
+    use crate::parser::DocumentParser;
     use crate::search::matcher::MatchMetadata;
 
     #[test]
@@ -111,10 +111,8 @@ mod tests {
         let matches = parser.search(b"a").expect("search failed");
 
         assert_eq!(matches.len(), 3, "expected all three PDF text matches");
-        assert!(
-            matches
-                .iter()
-                .all(|m| matches!(m.metadata, MatchMetadata::Pdf { page: 1 }))
-        );
+        assert!(matches
+            .iter()
+            .all(|m| matches!(m.metadata, MatchMetadata::Pdf { page: 1 })));
     }
 }

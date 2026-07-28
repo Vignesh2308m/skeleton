@@ -1,7 +1,7 @@
 use std::io::Error;
 use std::ops::Range;
 
-use calamine::{DataType, Reader, open_workbook_auto};
+use calamine::{open_workbook_auto, DataType, Reader};
 
 use super::{DocumentParser, ParserMetadata, ParserMetadataDetails};
 
@@ -128,8 +128,8 @@ impl DocumentParser for Xlsx {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::DocumentParser;
     use crate::parser::xlsx::Xlsx;
+    use crate::parser::DocumentParser;
 
     #[test]
     fn test_read_excel() {

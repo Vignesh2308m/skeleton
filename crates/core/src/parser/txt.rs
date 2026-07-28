@@ -40,8 +40,8 @@ impl DocumentParser for Text {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::DocumentParser;
     use crate::parser::txt::Text;
+    use crate::parser::DocumentParser;
 
     #[test]
     fn test_sample() {
