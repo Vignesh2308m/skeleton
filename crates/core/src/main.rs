@@ -5,6 +5,7 @@ use std::io::{Error, ErrorKind::InvalidInput, Write};
 pub mod parser;
 pub mod printer;
 pub mod search;
+pub mod webcrawl;
 
 use crate::parser::{DocumentParser, Pdf, Text, Xlsx};
 use crate::printer::{PrettyPrinter, Printer};
