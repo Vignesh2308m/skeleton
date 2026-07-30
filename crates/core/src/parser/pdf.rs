@@ -62,6 +62,20 @@ impl Pdf {
 
         decoded
     }
+
+    fn current_page(&self) -> usize {
+        self.metadata.page
+    }
+
+    fn metadata_at(&self, byte_offset: usize) -> ParserMetadataDetails {
+        let page = self
+            .page_ranges
+            .iter()
+            .find(|(range, _)| range.contains(&byte_offset))
+            .map(|(_, page)| *page)
+            .unwrap_or(0);
+        ParserMetadataDetails::Pdf { page }
+    }
 }
 
 impl DocumentParser for Pdf {
@@ -131,21 +145,7 @@ impl DocumentParser for Pdf {
             *page = self.metadata.page;
         }
         Ok(metadata)
-    }
-
-    fn current_page(&self) -> usize {
-        self.metadata.page
-    }
-
-    fn metadata_at(&self, byte_offset: usize) -> ParserMetadataDetails {
-        let page = self
-            .page_ranges
-            .iter()
-            .find(|(range, _)| range.contains(&byte_offset))
-            .map(|(_, page)| *page)
-            .unwrap_or(0);
-        ParserMetadataDetails::Pdf { page }
-    }
+    } 
 }
 
 #[cfg(test)]
