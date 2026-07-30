@@ -38,6 +38,34 @@ impl Xlsx {
             cell_ranges: Vec::new(),
         })
     }
+    
+    fn current_sheet(&self) -> String {
+        self.metadata.sheet.clone()
+    }
+
+    fn current_row(&self) -> u32 {
+        self.metadata.row
+    }
+
+    fn current_column(&self) -> u32 {
+        self.metadata.column
+    }
+
+    fn metadata_at(&self, byte_offset: usize) -> ParserMetadataDetails {
+        self.cell_ranges
+            .iter()
+            .find(|(range, _)| range.contains(&byte_offset))
+            .map(|(_, location)| ParserMetadataDetails::Xlsx {
+                sheet: location.sheet.clone(),
+                row: location.row,
+                column: location.column,
+            })
+            .unwrap_or(ParserMetadataDetails::Xlsx {
+                sheet: String::new(),
+                row: 0,
+                column: 0,
+            })
+    }
 }
 
 impl DocumentParser for Xlsx {
@@ -95,35 +123,7 @@ impl DocumentParser for Xlsx {
             *column = self.metadata.column;
         }
         Ok(metadata)
-    }
-
-    fn current_sheet(&self) -> String {
-        self.metadata.sheet.clone()
-    }
-
-    fn current_row(&self) -> u32 {
-        self.metadata.row
-    }
-
-    fn current_column(&self) -> u32 {
-        self.metadata.column
-    }
-
-    fn metadata_at(&self, byte_offset: usize) -> ParserMetadataDetails {
-        self.cell_ranges
-            .iter()
-            .find(|(range, _)| range.contains(&byte_offset))
-            .map(|(_, location)| ParserMetadataDetails::Xlsx {
-                sheet: location.sheet.clone(),
-                row: location.row,
-                column: location.column,
-            })
-            .unwrap_or(ParserMetadataDetails::Xlsx {
-                sheet: String::new(),
-                row: 0,
-                column: 0,
-            })
-    }
+    } 
 }
 
 #[cfg(test)]
