@@ -1,8 +1,9 @@
 use std::fs::File;
-use std::io::{BufReader, Error, Read};
+use std::io::{BufRead, BufReader, Error, Read};
 
 use super::{DocumentParser, ParserMetadata};
 
+const LINE_SEP:u8 = b'\n';
 pub struct Text {
     path: String,
     file_buffer: BufReader<File>,
@@ -29,7 +30,7 @@ impl DocumentParser for Text {
 
     fn read(&mut self) -> Result<&[u8], Error> {
         self.mem_buffer.clear();
-        self.file_buffer.read_to_end(&mut self.mem_buffer)?;
+        self.file_buffer.read_until(LINE_SEP,&mut self.mem_buffer)?;
         Ok(&self.mem_buffer)
     }
 
