@@ -17,29 +17,6 @@ pub trait DocumentParser {
     fn read(&mut self) -> Result<&[u8], Error>;
 
     fn metadata(&self) -> Result<ParserMetadata, Error>;
-
-    /// Describes the document location that contains a byte in `read()`'s output.
-    fn metadata_at(&self, _byte_offset: usize) -> ParserMetadataDetails {
-        self.metadata()
-            .map(|metadata| metadata.details)
-            .unwrap_or(ParserMetadataDetails::Text)
-    }
-
-    fn current_page(&self) -> usize {
-        0
-    }
-
-    fn current_sheet(&self) -> String {
-        String::new()
-    }
-
-    fn current_row(&self) -> u32 {
-        0
-    }
-
-    fn current_column(&self) -> u32 {
-        0
-    }
 }
 
 #[derive(Debug, Clone)]
