@@ -28,7 +28,7 @@ where
 
         for (index, window) in data.windows(pattern.len()).enumerate() {
             if window == pattern {
-                let meta = match self.metadata_at(index) {
+                let meta = match self.metadata()?.details {
                     ParserMetadataDetails::Text => {
                         let line_start = data[..index]
                             .iter()
