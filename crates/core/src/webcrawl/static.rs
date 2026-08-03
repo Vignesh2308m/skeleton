@@ -1,6 +1,5 @@
-use crate::webcrawl::Error;
-use crate::webcrawl::ParserMetadata;
-use crate::webcrawl::WebParser;
+use http::Response;
+use std::io::Error;
 
 pub struct StaticPage {
     pub url: String,
@@ -19,7 +18,10 @@ impl WebParser for StaticPage {
     }
 
     fn read(&mut self) -> Result<&[u8], Error> {
-        let content = std::str::from_utf8(&self.content).map_err(Error::from)?;
+        let url = self.url.clone();
+        let mut response = http::get(&url).map_err(|e| Error::HttpError(e))?;
+        response.body().map_err(|e| Error::HttpError(e))?;
+        let content = std::str::from_utf8(&response.body()).map_err(|e| Error::Utf8Error(e))?;
         Ok(content.as_bytes())
     }
 
@@ -29,6 +31,9 @@ impl WebParser for StaticPage {
 }
 
 mod test {
+    use super::StaticPage;
+    use crate::webcrawl::Error;
+
     #[test]
     fn test_static_page_new() {
         let url = "http://example.com";
@@ -41,6 +46,15 @@ mod test {
     #[test]
     fn test_static_page_read() {
         let url = "http://example.com";
+        let content = b"<!DOCTYPE html><html><body><h1>Hello, World!</h1></body></html>";
+        let mut page = StaticPage::new(url, content);
+        let expected_content = content.to_vec();
+        assert_eq!(page.read().unwrap(), expected_content.as_ref());
+    }
+
+    #[test]
+    fn test_static_page_read_http_error() {
+        let url = "http://invalid_url";
         let content = b"<!DOCTYPE html><html><body><h1>Hello, World!</h1></body></html>";
         let mut page = StaticPage::new(url, content);
         let expected_content = content.to_vec();
