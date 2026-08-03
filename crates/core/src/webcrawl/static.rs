@@ -22,11 +22,8 @@ impl WebParser for StaticPage {
     fn read(&mut self) -> Result<&[u8], Error> {
         let url = self.url.clone();
         let mut response = reqwest::get(&url).map_err(|e| Error::HttpError(e))?;
-        let content = response
-            .body_mut()
-            .collect()
-            .map_err(|e| Error::HttpError(e))?;
-        self.content = content.as_bytes().to_vec();
+        let content = response.bytes().map_err(|e| Error::HttpError(e))?;
+        self.content = content.to_vec();
         Ok(self.content.as_slice())
     }
 
