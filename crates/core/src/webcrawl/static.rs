@@ -36,27 +36,30 @@ mod test {
 
     #[test]
     fn test_static_page_new() {
-        let url = "http://example.com";
+        let url = String::from("http://example.com");
+        let buffer = Vec::new();
         let content = b"<!DOCTYPE html><html><body><h1>Hello, World!</h1></body></html>";
-        let page = StaticPage::new(url, content);
+        let page = StaticPage::new(url, buffer);
         assert_eq!(page.url, url);
         assert_eq!(page.content, content);
     }
 
     #[test]
     fn test_static_page_read() {
-        let url = "http://example.com";
+        let url = String::from("http://example.com");
+        let buffer = Vec::new();
         let content = b"<!DOCTYPE html><html><body><h1>Hello, World!</h1></body></html>";
-        let mut page = StaticPage::new(url, content);
+        let mut page = StaticPage::new(url, buffer);
         let expected_content = content.to_vec();
         assert_eq!(page.read().unwrap(), expected_content.as_ref());
     }
 
     #[test]
     fn test_static_page_read_http_error() {
-        let url = "http://invalid_url";
+        let url = String::from("http://invalid_url");
+        let buffer = Vec::new();
         let content = b"<!DOCTYPE html><html><body><h1>Hello, World!</h1></body></html>";
-        let mut page = StaticPage::new(url, content);
+        let mut page = StaticPage::new(url, buffer);
         let expected_content = content.to_vec();
         assert_eq!(page.read().unwrap(), expected_content.as_ref());
     }
