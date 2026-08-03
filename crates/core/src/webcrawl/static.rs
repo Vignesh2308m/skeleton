@@ -22,9 +22,12 @@ impl WebParser for StaticPage {
     fn read(&mut self) -> Result<&[u8], Error> {
         let url = self.url.clone();
         let mut response = reqwest::get(&url).map_err(|e| Error::HttpError(e))?;
-        response.body().map_err(|e| Error::HttpError(e))?;
-        let content = std::str::from_utf8(&response.body()).map_err(|e| Error::Utf8Error(e))?;
-        Ok(content.as_bytes())
+        let content = response
+            .body_mut()
+            .collect()
+            .map_err(|e| Error::HttpError(e))?;
+        self.content = content.as_bytes().to_vec();
+        Ok(self.content.as_slice())
     }
 
     fn metadata(&self) -> Result<ParserMetadata, Error> {
