@@ -1,3 +1,5 @@
+use crate::webcrawl::ParserMetadata;
+use crate::webcrawl::WebParser;
 use http::Response;
 use std::io::Error;
 
@@ -19,7 +21,7 @@ impl WebParser for StaticPage {
 
     fn read(&mut self) -> Result<&[u8], Error> {
         let url = self.url.clone();
-        let mut response = http::get(&url).map_err(|e| Error::HttpError(e))?;
+        let mut response = reqwest::get(&url).map_err(|e| Error::HttpError(e))?;
         response.body().map_err(|e| Error::HttpError(e))?;
         let content = std::str::from_utf8(&response.body()).map_err(|e| Error::Utf8Error(e))?;
         Ok(content.as_bytes())
