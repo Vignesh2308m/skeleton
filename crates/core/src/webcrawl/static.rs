@@ -21,7 +21,6 @@ impl WebParser for StaticPage {
     // `read` must be async to use `reqwest` and `await`
     // #[tokio::main] is used here for a quick fix, but a proper async application
     // would manage the runtime from its main function or a higher-level async block.
-    #[tokio::main]
     async fn read(&mut self) -> Result<&[u8], Error> {
         let url = self.url.clone();
         let response = reqwest::get(&url).await?; // Await the HTTP GET request
@@ -30,7 +29,7 @@ impl WebParser for StaticPage {
         Ok(self.content.as_slice())
     }
 
-    fn metadata(&self) -> Result<ParserMetadata, Error> {
+    async fn metadata(&self) -> Result<ParserMetadata, Error> {
         Ok(ParserMetadata {
             path: self.url.clone(),
             kind: "web",
@@ -49,6 +48,7 @@ impl WebParser for StaticPage {
 #[cfg(test)]
 mod test {
     use super::StaticPage;
+    use super::WebParser;
     use crate::webcrawl::Error; // Use our custom Error enum
 
     // All tests using async code must be marked with #[tokio::test]
@@ -75,6 +75,10 @@ mod test {
 
         // Assert that some content was fetched. It's not guaranteed to be "Hello, World!"
         // For precise content testing, you would need to mock the HTTP request.
+        println!(
+            "Content fetched: {:?}",
+            String::from_utf8_lossy(content_from_read)
+        );
         assert!(
             !content_from_read.is_empty(),
             "Content should not be empty after reading"
