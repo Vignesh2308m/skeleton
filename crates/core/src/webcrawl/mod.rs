@@ -144,7 +144,7 @@ pub trait WebParser {
 
 #[cfg(test)]
 mod tests {
-    use super::{Error, ParserMetadata, ParserMetadataDetails, WebParser}; // Use our custom types
+    use super::{Error, HashMap, ParserMetadata, ParserMetadataDetails, WebParser}; // Use our custom types
 
     struct TestWebParser {
         content: Vec<u8>,
