@@ -8,5 +8,6 @@ flate2 = "1"
 calamine = {path = "../../external/calamine"}
 pdf = { path = "../../external/pdf-rs/pdf" }
 memchr = "2"
-http = "1.5.0"
-reqwest = "0.13"
+reqwest = { version = "0.12", features = ["json"] } # Or the latest version
+tokio = { version = "1", features = ["full"] }    # Or specify features as needed
+chrono = "0.4.45"
